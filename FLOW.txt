@@ -1,0 +1,39 @@
+1) you have the original data of the packet headed to ip address X and port Y
+
+For Example you have a packets with the data field:
+    [10,9,8,7,6,5,4,3,2,1,0]
+destined for ip address
+    192.168.1.250
+and port
+    4444 (which is bytes: [11, 92] (big endian))
+
+2) Take the IP address and port and prepend them to the data in big endian oder. The data should now be:
+
+[192,168,1,250,11,92,10,9,8,7,6,5,4,3,2,1]
+
+3) Send that packet to localhost (127.0.0.1) port 55555
+
+**If you're not interested in UDP_XR inner workings, you can skip to step 11
+
+4) the packet is received on port 55555 in udp_xr. The IP address is stipped out of the packet. 
+
+    payload now looks like:
+
+        [11,92,10,9,8,7,6,5,4,3,2,1,0]
+
+5) The data length (including destination port) is prepended to the data.
+        [00,13,11,92,10,9,8,7,6,5,4,3,2,1,0]
+
+6) the source port is now prepended to the data
+
+        [11,93,00,13,11,92,10,9,8,7,6,5,4,3,2,1,0]
+
+7) The connection cache is checked, if a connection exitst it is used, if not, a new one is created
+
+8) The data is sent over TLS to the destination
+
+9) the data is received on the far end. The source, length and destination are stripped from the data.
+
+10) a UDP packet is crafted from the sending IP address, to the destination port, from the source port and injected into the networking stack
+
+11) the data is recieved by the receiving side as if step 2+ never occured and the sender had just sent to the host
