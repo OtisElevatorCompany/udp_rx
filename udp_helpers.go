@@ -5,6 +5,9 @@ import (
 	"net"
 )
 
+//declare a type for the forwardPacketFn
+type sendUDPFn func(srcipstr string, destipstr string, srcprt uint, destprt uint, data []byte, counter int) error
+
 //Iphdr is the IP header struct
 type Iphdr struct {
 	vhl   uint8

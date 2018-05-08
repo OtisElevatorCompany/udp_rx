@@ -17,6 +17,12 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+//Version is a constant that is this verion of the code
+const Version = "A1131825AAA"
+
+//RemoteTLSPort is the port of the remote TLS server (also the port of the local TLS server)
+const RemoteTLSPort = ":55554"
+
 //static variable controlling how long to wait before a connection
 //is considered by us to be 'timed out'
 var connTimeoutVal float64 = 10
@@ -46,7 +52,7 @@ func main() {
 	fmt.Printf("Starting UDPXR at: %s\n", time.Now())
 	//iniit the logger
 	log.SetOutput(&lumberjack.Logger{
-		Filename:   "udp_xr.log",
+		Filename:   "udp_rx.log",
 		MaxSize:    500, // megabytes
 		MaxBackups: 3,
 		MaxAge:     28,   //days
@@ -55,6 +61,7 @@ func main() {
 	fmt.Printf("Logger configured at: %s\n", time.Now())
 
 	//get cand parse command line args
+	versionFlag := flag.Bool("version", false, "Print the Version number and exit")
 	logFlag := flag.Int("loglevel", 0, "level of logging. 0 is warn+, 1 is Info+, 2 is debug+")
 	listenAddrFlag := flag.String("bindaddr", "", "The IP address to bind the listening UDP socket to")
 	cpuprofileFlag := flag.String("cpuprofile", "", "write cpu profile to file")
@@ -63,6 +70,11 @@ func main() {
 	flag.Parse()
 
 	configLogger(logFlag)
+	log.Warning("Starting udp_rx version: ", Version)
+	if *versionFlag {
+		fmt.Printf("Version is: %s\n", Version)
+		os.Exit(0)
+	}
 	//check if CPU profiling is on
 	if *cpuprofileFlag != "" {
 		f, err := os.Create(*cpuprofileFlag)
@@ -132,7 +144,7 @@ func tcpListener(listenAddrFlag *string) {
 		}
 
 		//go handle a connection in a gothread
-		go handleConnection(conn)
+		go handleConnection(conn, SendUDP)
 	}
 }
 
@@ -185,12 +197,12 @@ func udpListener(listenAddrFlag *string) {
 			log.Error(err)
 			continue
 		}
-		go forwardPacket(clientConf, destAddr, buf[4:n], src.Port)
+		go forwardPacket(clientConf, destAddr, buf[4:n], src.Port, RemoteTLSPort)
 
 	}
 }
 
-func forwardPacket(conf *tls.Config, addr string, data []byte, srcprt int) error {
+func forwardPacket(conf *tls.Config, addr string, data []byte, srcprt int, remoteTLSPort string) error {
 	//prepend the number of bytes into
 	lenbytes := intToBytes(len(data))
 	if netProfiling {
@@ -213,7 +225,7 @@ func forwardPacket(conf *tls.Config, addr string, data []byte, srcprt int) error
 	try := 0
 	for {
 		//get a cached conn or create a new one
-		conn, err := getConn(addr, conf)
+		conn, err := getConn(addr, conf, remoteTLSPort)
 		if err != nil {
 			_, ok := err.(*connTimeoutError)
 			if !ok {
@@ -238,15 +250,18 @@ func forwardPacket(conf *tls.Config, addr string, data []byte, srcprt int) error
 }
 
 //ensures that there is a mutex to lock/unlock
-func checkMutexMapMutex(addr string) {
+func checkMutexMapMutex(addr string) bool {
+	createdMutex := false
 	mutexWriterMutex.Lock()
+	defer mutexWriterMutex.Unlock()
 	if mutexMap[addr] == nil {
 		mutexMap[addr] = &sync.Mutex{}
+		createdMutex = true
 	}
-	mutexWriterMutex.Unlock()
+	return createdMutex
 }
 
-func getConn(addr string, conf *tls.Config) (*tls.Conn, error) {
+func getConn(addr string, conf *tls.Config, remotePort string) (*tls.Conn, error) {
 	//create a new mutex for this address if one doesn't exist
 	checkMutexMapMutex(addr)
 	//lock and defer closing
@@ -260,7 +275,7 @@ func getConn(addr string, conf *tls.Config) (*tls.Conn, error) {
 			return nil, &connTimeoutError{"Connection hasn't timed out"}
 		}
 		log.Info("creating new cached connection for: ", addr)
-		newconn, err := tls.Dial("tcp", addr+":55554", conf)
+		newconn, err := tls.Dial("tcp", addr+remotePort, conf)
 		if err != nil {
 			log.Error(err)
 			lastConnFail[addr] = time.Now()
@@ -268,7 +283,7 @@ func getConn(addr string, conf *tls.Config) (*tls.Conn, error) {
 		}
 		connMap[addr] = newconn
 		//start recieving on this new connection too: (tls.Conn implements net.Conn interface)
-		go handleConnection(newconn)
+		go handleConnection(newconn, SendUDP)
 		//debug code
 		if forwardMap != nil {
 			connstate := newconn.ConnectionState()
@@ -321,7 +336,7 @@ func configLogger(logFlag *int) error {
 	return nil
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, sender sendUDPFn) {
 	defer conn.Close()
 	//create a a reader for the connection
 	r := bufio.NewReader(conn)
@@ -400,7 +415,7 @@ func handleConnection(conn net.Conn) {
 			mlength = mlength + 8
 		}
 		//craft and send a UDP packet
-		err = SendUDP(rxip, lcip, srcport, destport, buf[:mlength-2], counter)
+		err = sender(rxip, lcip, srcport, destport, buf[:mlength-2], counter)
 		if err != nil {
 			log.Error(err)
 			return

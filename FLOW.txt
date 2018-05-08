@@ -21,12 +21,12 @@ and port
 
         [11,92,10,9,8,7,6,5,4,3,2,1,0]
 
-5) The data length (including destination port) is prepended to the data.
-        [00,13,11,92,10,9,8,7,6,5,4,3,2,1,0]
+5) the source port is now prepended to the data
 
-6) the source port is now prepended to the data
+        [11,93,11,92,10,9,8,7,6,5,4,3,2,1,0]
 
-        [11,93,00,13,11,92,10,9,8,7,6,5,4,3,2,1,0]
+6) The data length (including destination port) is prepended to the data.
+        [00,13,11,93,11,92,10,9,8,7,6,5,4,3,2,1,0]
 
 7) The connection cache is checked, if a connection exitst it is used, if not, a new one is created
 

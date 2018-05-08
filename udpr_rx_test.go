@@ -1,0 +1,176 @@
+package main
+
+import (
+	"bufio"
+	"crypto/tls"
+	"fmt"
+	"io"
+	"net"
+	"testing"
+
+	log "github.com/sirupsen/logrus"
+)
+
+//TestCheckMutexMap checks the checkMutexMapMutex method
+func TestCheckMutexMap(t *testing.T) {
+	created := checkMutexMapMutex("192.168.1.100")
+	if !created {
+		t.Errorf("Did not create a mutex")
+	}
+	created = checkMutexMapMutex("192.168.1.100")
+	if created {
+		t.Errorf("Created a new mutex when we shouldn't have")
+	}
+}
+
+//TestGetConn checks the getConn method
+func TestGetConn(t *testing.T) {
+	//create a tls socket on localhost:
+	go handleIncomingTLS()
+	//end setup, start test
+	clientConf := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	conn, err := getConn("127.0.0.1", clientConf, ":55554")
+	if err != nil {
+		t.Error("getConn returned an error")
+	}
+	conn.Write([]byte("Hello"))
+}
+func handleIncomingTLS() {
+	cer, err := tls.LoadX509KeyPair("server.crt", "server.key")
+	if err != nil {
+		log.Fatal(err)
+	}
+	serverConf := &tls.Config{
+		Certificates: []tls.Certificate{cer},
+	}
+	ln, _ := tls.Listen("tcp", ":55554", serverConf)
+	for {
+		conn, _ := ln.Accept()
+		defer conn.Close()
+		r := bufio.NewReader(conn)
+		buf := make([]byte, 1024)
+		io.ReadAtLeast(r, buf, 2)
+		break
+	}
+}
+
+//TestConnAddRemove checks the addConn and removeConn methods
+func TestConnAddRemove(t *testing.T) {
+	addConn("192.168.1.100", nil)
+	addConn("192.168.1.100", nil)
+	addConn("192.168.1.101", nil)
+	removeConn("192.168.1.100")
+	removeConn("abc")
+}
+
+//TestLogConfig checks the logger configuration method
+func TestLogConfig(t *testing.T) {
+	t0 := 0
+	t1 := 1
+	t2 := 2
+	configLogger(&t0)
+	configLogger(&t1)
+	configLogger(&t2)
+}
+
+//TestHandleConn tests the handleConn method
+func TestHandleConn(t *testing.T) {
+	//create a server to handle incoming connections
+	go tcpServer()
+	conn, _ := net.Dial("tcp", "127.0.0.1:8081")
+	handleConnection(conn, testSendUDP)
+}
+func testSendUDP(srcipstr string, destipstr string, srcprt uint, destprt uint, data []byte, counter int) error {
+	_, _, err := ParseIps(srcipstr, destipstr)
+	if destprt != 4498 {
+		fmt.Println("Destport wrong: ", destprt)
+		panic("destport isn't correct")
+	}
+	if srcprt != 4499 {
+		panic("srcprt isn't correct")
+	}
+	for i := 0; i < 11; i++ {
+		if data[i] != (byte)(10-i) {
+			panic("data malformed")
+		}
+	}
+	return err
+}
+func tcpServer() {
+	ln, _ := net.Listen("tcp", ":8081")
+	conn, _ := ln.Accept()
+	barray := make([]byte, 1024)
+	//len
+	barray[0] = 0
+	barray[1] = 13
+	//sourceport
+	barray[2] = 0x11
+	barray[3] = 0x93
+	//destport
+	barray[4] = 0x11
+	barray[5] = 0x92
+	for i := 0; i < 11; i++ {
+		barray[6+i] = (byte)(10 - i)
+	}
+	conn.Write(barray)
+	conn.Close()
+}
+
+//TestForwardPacket tests the forwardPacket method
+func TestForwardPacket(t *testing.T) {
+	clientConf := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	go listenTLS()
+	buf := make([]byte, 13)
+	buf[0] = 0x11
+	buf[1] = 0x92
+	for i := 0; i < 11; i++ {
+		buf[2+i] = (byte)(10 - i)
+	}
+	forwardPacket(clientConf, "127.0.0.1", buf, 55554, ":55553")
+}
+func listenTLS() {
+	cer, err := tls.LoadX509KeyPair("server.crt", "server.key")
+	if err != nil {
+		log.Fatal(err)
+	}
+	serverConf := &tls.Config{
+		Certificates: []tls.Certificate{cer},
+	}
+	lan, _ := tls.Listen("tcp", ":55553", serverConf)
+	for {
+		conn, _ := lan.Accept()
+		defer conn.Close()
+		r := bufio.NewReader(conn)
+		//check length bytes
+		lenbuf := make([]byte, 2)
+		io.ReadAtLeast(r, lenbuf, 2)
+		if lenbuf[0] != 0 || lenbuf[1] != 13 {
+			panic("length wrong")
+		}
+		//check srcport bytes
+		srcprtbuf := make([]byte, 2)
+		io.ReadAtLeast(r, srcprtbuf, 2)
+		if srcprtbuf[0] != 0xD9 || srcprtbuf[1] != 0x02 {
+			panic("srcprt bytes wrong")
+		}
+		//check destport
+		destprtbuf := make([]byte, 2)
+		io.ReadAtLeast(r, destprtbuf, 2)
+		if destprtbuf[0] != 0x11 || destprtbuf[1] != 0x92 {
+			panic("destprt bytes wrong")
+		}
+		//finally, check data
+		databuf := make([]byte, 11)
+		io.ReadAtLeast(r, databuf, 11)
+		for i := 0; i < 11; i++ {
+			if databuf[i] != (byte)(10-i) {
+				panic("data byte wrong")
+			}
+		}
+		break
+	}
+}
