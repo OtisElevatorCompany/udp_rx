@@ -26,7 +26,8 @@ func TestCheckMutexMap(t *testing.T) {
 //TestGetConn checks the getConn method
 func TestGetConn(t *testing.T) {
 	//create a tls socket on localhost:
-	go handleIncomingTLS()
+	ln := setupTLS()
+	go handleIncomingTLS(ln)
 	//end setup, start test
 	clientConf := &tls.Config{
 		InsecureSkipVerify: true,
@@ -35,9 +36,11 @@ func TestGetConn(t *testing.T) {
 	if err != nil {
 		t.Error("getConn returned an error")
 	}
-	conn.Write([]byte("Hello"))
+	conn.Write([]byte("Hello\n"))
 }
-func handleIncomingTLS() {
+func setupTLS() net.Listener {
+	log.Warning("prepping incoming tls")
+	fmt.Println("prepping to handle incoming TLS...")
 	cer, err := tls.LoadX509KeyPair("server.crt", "server.key")
 	if err != nil {
 		log.Fatal(err)
@@ -46,12 +49,17 @@ func handleIncomingTLS() {
 		Certificates: []tls.Certificate{cer},
 	}
 	ln, _ := tls.Listen("tcp", ":55554", serverConf)
+	return ln
+}
+func handleIncomingTLS(ln net.Listener) {
 	for {
+		fmt.Println("ready to accept connections...")
 		conn, _ := ln.Accept()
 		defer conn.Close()
 		r := bufio.NewReader(conn)
-		buf := make([]byte, 1024)
-		io.ReadAtLeast(r, buf, 2)
+		//buf := make([]byte, 1024)
+		r.ReadLine()
+		//io.ReadAtLeast(r, buf, 2)
 		break
 	}
 }
@@ -78,7 +86,8 @@ func TestLogConfig(t *testing.T) {
 //TestHandleConn tests the handleConn method
 func TestHandleConn(t *testing.T) {
 	//create a server to handle incoming connections
-	go tcpServer()
+	ln := buildListener()
+	go tcpServer(ln)
 	conn, _ := net.Dial("tcp", "127.0.0.1:8081")
 	handleConnection(conn, testSendUDP)
 }
@@ -98,8 +107,11 @@ func testSendUDP(srcipstr string, destipstr string, srcprt uint, destprt uint, d
 	}
 	return err
 }
-func tcpServer() {
+func buildListener() net.Listener {
 	ln, _ := net.Listen("tcp", ":8081")
+	return ln
+}
+func tcpServer(ln net.Listener) {
 	conn, _ := ln.Accept()
 	barray := make([]byte, 1024)
 	//len
