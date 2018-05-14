@@ -1,5 +1,7 @@
 #ignore all exes
-*.exe
+/*.exe
 .vscode
 *.log
 *.test
+#un-ignore windows builds
+/builds/*/*.exe
