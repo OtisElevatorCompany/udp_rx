@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -33,4 +34,8 @@ func getTimeBytes() []byte {
 	}
 	fmt.Println(output)
 	return barray
+}
+
+func isWindows() bool {
+	return os.PathSeparator == '\\' && os.PathListSeparator == ';'
 }

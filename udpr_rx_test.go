@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -25,12 +27,33 @@ func TestCheckMutexMap(t *testing.T) {
 
 //TestGetConn checks the getConn method
 func TestGetConn(t *testing.T) {
+	//setup certs
+	var cacertpath, cakeypath, certpath, keypath string
+	cacertpath = "./keys/ca.cert.pem"
+	cakeypath = "./keys/ca.key.pem"
+	keypath = "./keys/server.key"
+	certpath = "./server.crt"
+	if isWindows() {
+		cacertpath = strings.Replace(cacertpath, "/", "\\", -1)
+		cakeypath = strings.Replace(cakeypath, "/", "\\", -1)
+		keypath = strings.Replace(keypath, "/", "\\", -1)
+		certpath = strings.Replace(certpath, "/", "\\", -1)
+	}
+	CreateCert(certpath, keypath, cakeypath, cacertpath)
+	rootCAs := configureRootCAs(&cacertpath)
+	cer, err := tls.LoadX509KeyPair(certpath, keypath)
+	if err != nil {
+		log.Fatal(err)
+	}
 	//create a tls socket on localhost:
-	ln := setupTLS()
+	ln := setupTLS(rootCAs)
 	go handleIncomingTLS(ln)
 	//end setup, start test
-	clientConf := &tls.Config{
-		InsecureSkipVerify: true,
+
+	clientConf = &tls.Config{
+		//InsecureSkipVerify: true,
+		RootCAs:      rootCAs,
+		Certificates: []tls.Certificate{cer},
 	}
 	conn, err := getConn("127.0.0.1", clientConf, ":55554")
 	if err != nil {
@@ -38,15 +61,24 @@ func TestGetConn(t *testing.T) {
 	}
 	conn.Write([]byte("Hello\n"))
 }
-func setupTLS() net.Listener {
+func setupTLS(rootCAs *x509.CertPool) net.Listener {
 	log.Warning("prepping incoming tls")
 	fmt.Println("prepping to handle incoming TLS...")
-	cer, err := tls.LoadX509KeyPair("server.crt", "server.key")
+	certpath := "./server.crt"
+	keypath := "./keys/server.key"
+	if isWindows() {
+		certpath = strings.Replace(certpath, "/", "\\", -1)
+		keypath = strings.Replace(keypath, "/", "\\", -1)
+	}
+	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	serverConf := &tls.Config{
+	serverConf = &tls.Config{
 		Certificates: []tls.Certificate{cer},
+		MinVersion:   tls.VersionTLS12,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    rootCAs,
 	}
 	ln, _ := tls.Listen("tcp", ":55554", serverConf)
 	return ln
@@ -132,8 +164,29 @@ func tcpServer(ln net.Listener) {
 
 //TestForwardPacket tests the forwardPacket method
 func TestForwardPacket(t *testing.T) {
-	clientConf := &tls.Config{
-		InsecureSkipVerify: true,
+	//setup certs
+	var cacertpath, cakeypath, certpath, keypath string
+	cacertpath = "./keys/ca.cert.pem"
+	cakeypath = "./keys/ca.key.pem"
+	keypath = "./keys/server.key"
+	certpath = "./server.crt"
+	if isWindows() {
+		cacertpath = strings.Replace(cacertpath, "/", "\\", -1)
+		cakeypath = strings.Replace(cakeypath, "/", "\\", -1)
+		keypath = strings.Replace(keypath, "/", "\\", -1)
+		certpath = strings.Replace(certpath, "/", "\\", -1)
+	}
+	CreateCert(certpath, keypath, cakeypath, cacertpath)
+	rootCAs := configureRootCAs(&cacertpath)
+	cer, err := tls.LoadX509KeyPair(certpath, keypath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	//setup client config
+	clientConf = &tls.Config{
+		//InsecureSkipVerify: true,
+		RootCAs:      rootCAs,
+		Certificates: []tls.Certificate{cer},
 	}
 	go listenTLS()
 	buf := make([]byte, 13)
@@ -145,12 +198,29 @@ func TestForwardPacket(t *testing.T) {
 	forwardPacket(clientConf, "127.0.0.1", buf, 55554, ":55553")
 }
 func listenTLS() {
-	cer, err := tls.LoadX509KeyPair("server.crt", "server.key")
+	//setup certs
+	var cacertpath, cakeypath, certpath, keypath string
+	cacertpath = "./keys/ca.cert.pem"
+	cakeypath = "./keys/ca.key.pem"
+	keypath = "./keys/server.key"
+	certpath = "./server.crt"
+	if isWindows() {
+		cacertpath = strings.Replace(cacertpath, "/", "\\", -1)
+		cakeypath = strings.Replace(cakeypath, "/", "\\", -1)
+		keypath = strings.Replace(keypath, "/", "\\", -1)
+		certpath = strings.Replace(certpath, "/", "\\", -1)
+	}
+	CreateCert(certpath, keypath, cakeypath, cacertpath)
+	rootCAs := configureRootCAs(&cacertpath)
+	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	serverConf := &tls.Config{
+	serverConf = &tls.Config{
 		Certificates: []tls.Certificate{cer},
+		MinVersion:   tls.VersionTLS12,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    rootCAs,
 	}
 	lan, _ := tls.Listen("tcp", ":55553", serverConf)
 	for {

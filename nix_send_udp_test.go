@@ -5,12 +5,14 @@ package main
 import (
 	"net"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func TestCreateUDPSocket(t *testing.T) {
 	err := CreateUDPSocket()
 	if err != nil {
-		t.Errorf("Failed to create a socket")
+		log.Fatal("Failed to create a socket", err)
 	}
 }
 

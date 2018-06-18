@@ -5,3 +5,7 @@
 *.test
 #un-ignore windows builds
 /builds/*/*.exe
+debug
+*.crt
+*.key
+udp_rx

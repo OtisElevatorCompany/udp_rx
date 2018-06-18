@@ -3,9 +3,11 @@ package main
 import (
 	"bufio"
 	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"runtime/pprof"
@@ -18,7 +20,7 @@ import (
 )
 
 //Version is a constant that is this verion of the code
-const Version = "A1131825AAA"
+const Version = "A1231825AAA"
 
 //RemoteTLSPort is the port of the remote TLS server (also the port of the local TLS server)
 const RemoteTLSPort = ":55554"
@@ -64,10 +66,21 @@ func main() {
 	versionFlag := flag.Bool("version", false, "Print the Version number and exit")
 	logFlag := flag.Int("loglevel", 0, "level of logging. 0 is warn+, 1 is Info+, 2 is debug+")
 	listenAddrFlag := flag.String("bindaddr", "", "The IP address to bind the listening UDP socket to")
-	cpuprofileFlag := flag.String("cpuprofile", "", "write cpu profile to file")
+	cpuprofileFlag := flag.String("cpuprofile", "", "If specified writed a cpuprofile to the given filename")
 	maxProfilingPacketsFlag := flag.Int("maxprofpackets", 1000, "the maximum number of packets allowed to be forwarded during CPU profiling")
 	netProfilingFlag := flag.Bool("netprof", false, "turn on net profiling")
+	keyPathFlag := flag.String("keypath", "./keys/server.key", "Override the default key path/name which is ./keys/server.key")
+	certPathFlag := flag.String("certpath", "server.crt", "Override the default certificate path/name which is ./server.crt")
+	caKeyPathFlag := flag.String("ca_keypath", "./keys/ca.key.pem", "Override the default CA key path/name which is ./keys/ca.key.pem")
+	caCertPathFlag := flag.String("ca_certpath", "./keys/ca.cert.pem", "Override the default CA certificate path/name which is ./keys/ca.cert.pem")
 	flag.Parse()
+
+	if isWindows() {
+		*keyPathFlag = strings.Replace(*keyPathFlag, "/", "\\", -1)
+		*certPathFlag = strings.Replace(*certPathFlag, "/", "\\", -1)
+		*caKeyPathFlag = strings.Replace(*caKeyPathFlag, "/", "\\", -1)
+		*caCertPathFlag = strings.Replace(*caCertPathFlag, "/", "\\", -1)
+	}
 
 	configLogger(logFlag)
 	log.Warning("Starting udp_rx version: ", Version)
@@ -95,17 +108,28 @@ func main() {
 		newdatalen = newdatalen + 8
 	}
 
-	//configure ssl
-	clientConf = &tls.Config{
-		InsecureSkipVerify: true,
-	}
-	//load server certs
-	cer, err := tls.LoadX509KeyPair("server.crt", "server.key")
+	//create a certificate
+	CreateCert(*certPathFlag, *keyPathFlag, *caKeyPathFlag, *caCertPathFlag)
+
+	//load server cert as tls certs
+	cer, err := tls.LoadX509KeyPair(*certPathFlag, *keyPathFlag)
 	if err != nil {
 		log.Fatal(err)
 	}
+	//load the CA into the trusted store and return it for serverconf
+	rootCAs := configureRootCAs(caCertPathFlag)
+	//configure ssl
+	clientConf = &tls.Config{
+		//InsecureSkipVerify: true,
+		RootCAs:      rootCAs,
+		Certificates: []tls.Certificate{cer},
+	}
+
 	serverConf = &tls.Config{
 		Certificates: []tls.Certificate{cer},
+		MinVersion:   tls.VersionTLS12,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    rootCAs,
 	}
 
 	//start listening on the UDP port in go routine
@@ -271,7 +295,6 @@ func getConn(addr string, conf *tls.Config, remotePort string) (*tls.Conn, error
 	conn := connMap[addr]
 	if conn == nil {
 		if time.Since(lastConnFail[addr]).Seconds() < connTimeoutVal {
-			//log.Debug("not attempting to create new connection since timeout hasn't been reached since last failure")
 			return nil, &connTimeoutError{"Connection hasn't timed out"}
 		}
 		log.Info("creating new cached connection for: ", addr)
@@ -445,4 +468,24 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 		}
 		counter++
 	}
+}
+
+func configureRootCAs(caCertPathFlag *string) *x509.CertPool {
+	//also load as bytes for x509
+	// Read in the cert file
+	x509certs, err := ioutil.ReadFile(*caCertPathFlag)
+	if err != nil {
+		log.Fatalf("Failed to append certificate to RootCAs: %v", err)
+	}
+
+	// Get the SystemCertPool, continue with an empty pool on error
+	rootCAs, _ := x509.SystemCertPool()
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
+	//append the local cert to the in-memory system CA pool
+	if ok := rootCAs.AppendCertsFromPEM(x509certs); !ok {
+		log.Warning("No certs appended, using system certs only")
+	}
+	return rootCAs
 }
