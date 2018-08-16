@@ -3,9 +3,11 @@
 .vscode
 *.log
 *.test
-#un-ignore windows builds
-/builds/*/*.exe
+
+/builds/*/*/*.exe
 debug
 *.crt
 *.key
+*.pem
+*.pw
 udp_rx

@@ -19,8 +19,8 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-//Version is a constant that is this verion of the code
-const Version = "A1231825AAA"
+//Version is a constant that is this verion of the code, according to OTIS standards
+const Version = "A1431825AAA"
 
 //RemoteTLSPort is the port of the remote TLS server (also the port of the local TLS server)
 const RemoteTLSPort = ":55554"
@@ -51,7 +51,7 @@ var newdatalen = 4
 var forwardMap map[string]int
 
 func main() {
-	fmt.Printf("Starting UDPXR at: %s\n", time.Now())
+	fmt.Printf("Starting udp_rx at: %s\n", time.Now())
 	//iniit the logger
 	log.SetOutput(&lumberjack.Logger{
 		Filename:   "udp_rx.log",
@@ -73,6 +73,7 @@ func main() {
 	certPathFlag := flag.String("certpath", "server.crt", "Override the default certificate path/name which is ./server.crt")
 	caKeyPathFlag := flag.String("ca_keypath", "./keys/ca.key.pem", "Override the default CA key path/name which is ./keys/ca.key.pem")
 	caCertPathFlag := flag.String("ca_certpath", "./keys/ca.cert.pem", "Override the default CA certificate path/name which is ./keys/ca.cert.pem")
+	caKeyPasswordFlag := flag.String("ca_keypass", "", "If the CA Key is encrypted enter the password")
 	flag.Parse()
 
 	if isWindows() {
@@ -109,7 +110,10 @@ func main() {
 	}
 
 	//create a certificate
-	CreateCert(*certPathFlag, *keyPathFlag, *caKeyPathFlag, *caCertPathFlag)
+	//This will block until the year is > 1970
+	log.Debug("Creating Cert, will block until device time is > 1970")
+	CreateCert(*certPathFlag, *keyPathFlag, *caKeyPathFlag, *caCertPathFlag, *caKeyPasswordFlag)
+	log.Debug("Cert created")
 
 	//load server cert as tls certs
 	cer, err := tls.LoadX509KeyPair(*certPathFlag, *keyPathFlag)
@@ -120,7 +124,6 @@ func main() {
 	rootCAs := configureRootCAs(caCertPathFlag)
 	//configure ssl
 	clientConf = &tls.Config{
-		//InsecureSkipVerify: true,
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{cer},
 	}
@@ -221,7 +224,32 @@ func udpListener(listenAddrFlag *string) {
 			log.Error(err)
 			continue
 		}
-		go forwardPacket(clientConf, destAddr, buf[4:n], src.Port, RemoteTLSPort)
+		//catch if the dest is a local IP address
+		isLocalHost := false
+		ips, err := GetIps()
+		//build an ipv4 address
+		destip := net.IPv4(buf[0], buf[1], buf[2], buf[3]).String()
+		for _, ip := range ips {
+			ipstring := ip.String()
+			_ = ipstring
+			if ip.String() == destip {
+				isLocalHost = true
+				break
+			}
+		}
+		// if !isLocalHost && destip == net.IPv4(127, 0, 0, 1).String() {
+		// 	isLocalHost = true
+		// }
+		if isLocalHost {
+			//skip forward packet and go straight to
+			err = SendUDP("127.0.0.1", destip, uint(src.Port), uint(farport), buf[6:], 0)
+			if err != nil {
+				log.Error("Error sending to localhost")
+			}
+		} else {
+			//otherwise forward to dest
+			go forwardPacket(clientConf, destAddr, buf[4:n], src.Port, RemoteTLSPort)
+		}
 
 	}
 }
@@ -269,6 +297,7 @@ func forwardPacket(conf *tls.Config, addr string, data []byte, srcprt int, remot
 				return err
 			}
 		}
+		log.Debug("sent a packet")
 		return nil
 	}
 }
@@ -466,7 +495,7 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 				}
 			}
 		}
-		counter++
+		//counter++
 	}
 }
 

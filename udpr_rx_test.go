@@ -39,7 +39,7 @@ func TestGetConn(t *testing.T) {
 		keypath = strings.Replace(keypath, "/", "\\", -1)
 		certpath = strings.Replace(certpath, "/", "\\", -1)
 	}
-	CreateCert(certpath, keypath, cakeypath, cacertpath)
+	CreateCert(certpath, keypath, cakeypath, cacertpath, "")
 	rootCAs := configureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
@@ -176,7 +176,7 @@ func TestForwardPacket(t *testing.T) {
 		keypath = strings.Replace(keypath, "/", "\\", -1)
 		certpath = strings.Replace(certpath, "/", "\\", -1)
 	}
-	CreateCert(certpath, keypath, cakeypath, cacertpath)
+	CreateCert(certpath, keypath, cakeypath, cacertpath, "")
 	rootCAs := configureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
@@ -210,7 +210,7 @@ func listenTLS() {
 		keypath = strings.Replace(keypath, "/", "\\", -1)
 		certpath = strings.Replace(certpath, "/", "\\", -1)
 	}
-	CreateCert(certpath, keypath, cakeypath, cacertpath)
+	CreateCert(certpath, keypath, cakeypath, cacertpath, "")
 	rootCAs := configureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
