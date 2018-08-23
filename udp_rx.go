@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	certcreator "./cert_creator"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -112,7 +113,7 @@ func main() {
 	//create a certificate
 	//This will block until the year is > 1970
 	log.Debug("Creating Cert, will block until device time is > 1970")
-	CreateCert(*certPathFlag, *keyPathFlag, *caKeyPathFlag, *caCertPathFlag, *caKeyPasswordFlag)
+	certcreator.CreateCert(*certPathFlag, *keyPathFlag, *caKeyPathFlag, *caCertPathFlag, *caKeyPasswordFlag)
 	log.Debug("Cert created")
 
 	//load server cert as tls certs
@@ -226,7 +227,7 @@ func udpListener(listenAddrFlag *string) {
 		}
 		//catch if the dest is a local IP address
 		isLocalHost := false
-		ips, err := GetIps()
+		ips, err := certcreator.GetIps()
 		//build an ipv4 address
 		destip := net.IPv4(buf[0], buf[1], buf[2], buf[3]).String()
 		for _, ip := range ips {
