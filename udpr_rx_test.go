@@ -30,16 +30,14 @@ func TestGetConn(t *testing.T) {
 	//setup certs
 	var cacertpath, cakeypath, certpath, keypath string
 	cacertpath = "./keys/ca.cert.pem"
-	cakeypath = "./keys/ca.key.pem"
 	keypath = "./keys/server.key"
-	certpath = "./server.crt"
+	certpath = "./keys/server.crt"
 	if isWindows() {
 		cacertpath = strings.Replace(cacertpath, "/", "\\", -1)
 		cakeypath = strings.Replace(cakeypath, "/", "\\", -1)
 		keypath = strings.Replace(keypath, "/", "\\", -1)
 		certpath = strings.Replace(certpath, "/", "\\", -1)
 	}
-	CreateCert(certpath, keypath, cakeypath, cacertpath, "")
 	rootCAs := configureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
@@ -64,7 +62,7 @@ func TestGetConn(t *testing.T) {
 func setupTLS(rootCAs *x509.CertPool) net.Listener {
 	log.Warning("prepping incoming tls")
 	fmt.Println("prepping to handle incoming TLS...")
-	certpath := "./server.crt"
+	certpath := "./keys/server.crt"
 	keypath := "./keys/server.key"
 	if isWindows() {
 		certpath = strings.Replace(certpath, "/", "\\", -1)
@@ -167,16 +165,14 @@ func TestForwardPacket(t *testing.T) {
 	//setup certs
 	var cacertpath, cakeypath, certpath, keypath string
 	cacertpath = "./keys/ca.cert.pem"
-	cakeypath = "./keys/ca.key.pem"
 	keypath = "./keys/server.key"
-	certpath = "./server.crt"
+	certpath = "./keys/server.crt"
 	if isWindows() {
 		cacertpath = strings.Replace(cacertpath, "/", "\\", -1)
 		cakeypath = strings.Replace(cakeypath, "/", "\\", -1)
 		keypath = strings.Replace(keypath, "/", "\\", -1)
 		certpath = strings.Replace(certpath, "/", "\\", -1)
 	}
-	CreateCert(certpath, keypath, cakeypath, cacertpath, "")
 	rootCAs := configureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
@@ -201,16 +197,14 @@ func listenTLS() {
 	//setup certs
 	var cacertpath, cakeypath, certpath, keypath string
 	cacertpath = "./keys/ca.cert.pem"
-	cakeypath = "./keys/ca.key.pem"
 	keypath = "./keys/server.key"
-	certpath = "./server.crt"
+	certpath = "./keys/server.crt"
 	if isWindows() {
 		cacertpath = strings.Replace(cacertpath, "/", "\\", -1)
 		cakeypath = strings.Replace(cakeypath, "/", "\\", -1)
 		keypath = strings.Replace(keypath, "/", "\\", -1)
 		certpath = strings.Replace(certpath, "/", "\\", -1)
 	}
-	CreateCert(certpath, keypath, cakeypath, cacertpath, "")
 	rootCAs := configureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
