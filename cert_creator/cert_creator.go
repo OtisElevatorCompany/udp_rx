@@ -1,3 +1,19 @@
+// Copyright 2018 Otis Elevator Company. All rights reserved.
+// Use of this source code is govered by the MIT license which
+// can be found in the LICENSE file.
+
+// Author: Jeremy Mill: jeremy.mill@otis.com
+
+// Otis udp_rx software has been designed to utilize information
+// security technology described Part 774 of the EAR Category 5 Part 2
+// but has been made publicly available in accordance with Part 742.15(b)
+// and is therefore not subject to U.S. export regulations.
+// Before you download this software be aware that the country in which you
+// are located may have restrictions related to the import, possession, use
+// and/or reexport of encryption items.  It is your responsibility to comply
+// with any applicable laws and regulations pertaining the import, possession,
+// use and/or reexport of encryption items.
+
 package certcreator
 
 import (
@@ -21,7 +37,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//CreateCert waits for a time > year 1970, then creates a certificate for the current ip address valid for 10 years
+// CreateCert waits for a time > year 1970, then creates a certificate for the current ip address valid for 10 years
 func CreateCert(outpath, keypath, caKeyPath, caCertPath, keypassword string) error {
 	blockUntilTimeSync()
 	//check if the keyfile already exists, and if it doesn't, create it
@@ -40,18 +56,7 @@ func CreateCert(outpath, keypath, caKeyPath, caCertPath, keypassword string) err
 	}
 
 	//load the certificate authority private key
-	var caKey crypto.PrivateKey
-	if keypassword == "" {
-		caKey, err = loadCaKey(caKeyPath)
-		if err != nil {
-			log.Fatal("Couldn't load/parse CA key", err)
-		}
-	} else {
-		caKey, err = loadEncryptedCaKey(caKeyPath, keypassword)
-		if err != nil {
-			log.Fatal("Couldn't load/parse CA key", err)
-		}
-	}
+	caKey := loadCaPrivateKey(caKeyPath, keypassword)
 
 	//create the new certificate which will be signed by the CA
 	newCert := &x509.Certificate{
@@ -65,7 +70,7 @@ func CreateCert(outpath, keypath, caKeyPath, caCertPath, keypassword string) err
 			PostalCode:    []string{"06032"},
 		},
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
+		NotAfter:              time.Now().AddDate(100, 0, 0),
 		IsCA:                  true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
@@ -120,6 +125,79 @@ func CreateCert(outpath, keypath, caKeyPath, caCertPath, keypassword string) err
 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: newCertB})
 	certOut.Close()
 	return nil
+}
+
+// CreateCertInMemory creates a new client keypair in memory without writing to disk.
+// It returns (in pem format) newCert, newKey, error
+func CreateCertInMemory(caKeyPath, caCertPath, caKeyPassword string,
+	ips []net.IP, hostnames []string) ([]byte, []byte, error) {
+	//build new private key
+	newPrivKey := createPrivateKeyInMemory()
+	//load the certificate authority certificate
+	caCert, err := loadCaCert(caCertPath)
+	if err != nil {
+		log.Fatal("Couldn't load/parse CA cert", err)
+	}
+	//load the certificate authority private key
+	caKey := loadCaPrivateKey(caKeyPath, caKeyPassword)
+	//create the new certificate which will be signed by the CA
+	newCert := &x509.Certificate{
+		SerialNumber: big.NewInt(1653),
+		Subject: pkix.Name{
+			Organization:  []string{"Otis Elevator"},
+			Country:       []string{"US"},
+			Province:      []string{"Connecticut"},
+			Locality:      []string{"Farmington"},
+			StreetAddress: []string{"5 Farm Springs"},
+			PostalCode:    []string{"06032"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(100, 0, 0),
+		IsCA:                  true,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+		IPAddresses:           ips,
+		DNSNames:              hostnames,
+	}
+	//get the public key from the private key
+	_, pubkey, err := parsePrivateKey(newPrivKey)
+	if err != nil {
+		log.Fatal("Couldn't get key info from keyfile", err)
+	}
+	//create a new certificate
+	var newCertB []byte
+	newCertB, err = x509.CreateCertificate(
+		rand.Reader, //rand reader
+		newCert,     //cert we're going to sign
+		caCert,      //the CA's cert
+		pubkey,      //the pubkey of the new cert
+		caKey)       //the priv key of the CA
+	if err != nil {
+		log.Fatal("Couldn't create certificate file", err)
+	}
+	//pem encode the key and the newly created certificate
+	newCertPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: newCertB})
+	newKeyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: newPrivKey})
+	return newCertPem, newKeyPem, nil
+}
+
+func loadCaPrivateKey(caKeyPath, keypassword string) crypto.PrivateKey {
+	//load the certificate authority private key
+	var caKey crypto.PrivateKey
+	var err error
+	if keypassword == "" {
+		caKey, err = loadCaKey(caKeyPath)
+		if err != nil {
+			log.Fatal("Couldn't load/parse CA key", err)
+		}
+	} else {
+		caKey, err = loadEncryptedCaKey(caKeyPath, keypassword)
+		if err != nil {
+			log.Fatal("Couldn't load/parse CA key", err)
+		}
+	}
+	return caKey
 }
 
 //load the CA certificate from a path and return an x509 cert
@@ -185,20 +263,29 @@ func checkOrCreatePrivateKey(keypath string) {
 		if err != nil {
 			log.Fatal("no key detected and couldn't write one", err)
 		}
-		genPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-		if err != nil {
-			log.Fatal("Couldn't generate private key", err)
-		}
-		marshaledKey, err := x509.MarshalECPrivateKey(genPrivKey)
-		if err != nil {
-			log.Fatal("Couldn't marshal private key", err)
-		}
-		pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: marshaledKey})
+		marshaledKey := createPrivateKeyInMemory()
+		pem.Encode(keyOut, &pem.Block{Type: "EC PRIVATE KEY", Bytes: marshaledKey})
 		keyOut.Close()
 		log.Info("Created new private key")
 	} else {
 		log.Debug("Private key already exists")
 	}
+}
+
+// createPrivateKeyInMemory creates a private key and returns []bytes in DER format if the key doesn't exist.
+// if the key does exist, returns the DER encoding of it
+func createPrivateKeyInMemory() []byte {
+	//if the file doesn't exist:
+	log.Debug("Creating new private key")
+	genPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		log.Fatal("Couldn't generate private key", err)
+	}
+	marshaledKey, err := x509.MarshalECPrivateKey(genPrivKey)
+	if err != nil {
+		log.Fatal("Couldn't marshal private key", err)
+	}
+	return marshaledKey
 }
 
 //this function blocks until NTP syncs. We don't want to create a 10 year cert from
