@@ -3,6 +3,10 @@ This is still currently pre-1.0 software, breaking changes are likely to be made
 
 udp_rx is a program created to tunnel udp traffic through a TLS 1.3 connection. It is useful for securing old protocols that cannot be updated to tcp or for some reason, can't use dtls. If you use this tool you _should_ firewall off the udp ports used by the protocol to prevent redirection by a malicious third party and _should_ firewall off the UDP port used by udp_rx.
 
+Please see gen_keys_readme.txt for creating/using SSL keys with udp_rx
+
+Please see IPTABLES_RULE.txt for a sample IPTABLES command to firewall off a port protected by udp_rx
+
 ## Export Control Notice
 Otis udp_rx software has been designed to utilize information security technology described Part 774 of the EAR Category 5 Part 2 but has been made publicly available in accordance with Part 742.15(b) and is therefore not subject to U.S. export regulations. 
 
