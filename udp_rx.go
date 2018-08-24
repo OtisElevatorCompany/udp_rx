@@ -70,25 +70,26 @@ func main() {
 	cpuprofileFlag := flag.String("cpuprofile", "", "If specified writed a cpuprofile to the given filename")
 	maxProfilingPacketsFlag := flag.Int("maxprofpackets", 1000, "the maximum number of packets allowed to be forwarded during CPU profiling")
 	netProfilingFlag := flag.Bool("netprof", false, "turn on net profiling")
-	//certificate flags
 	keyPathFlag := flag.String("keypath", "./keys/server.key", "Override the default key path/name which is ./keys/server.key")
-	certPathFlag := flag.String("certpath", "./keys/server.crt", "Override the default certificate path/name which is ./server.crt")
-	caCertPathFlag := flag.String("cacert", "./keys/cacert.crt", "Set the Certificate Authority Certificate to add to the trust")
+	certPathFlag := flag.String("certpath", "server.crt", "Override the default certificate path/name which is ./server.crt")
+	caKeyPathFlag := flag.String("ca_keypath", "./keys/ca.key.pem", "Override the default CA key path/name which is ./keys/ca.key.pem")
+	caCertPathFlag := flag.String("ca_certpath", "./keys/ca.cert.pem", "Override the default CA certificate path/name which is ./keys/ca.cert.pem")
+	caKeyPasswordFlag := flag.String("ca_keypass", "", "If the CA Key is encrypted enter the password")
 	flag.Parse()
-	//if version flag, print version and exit
-	if *versionFlag {
-		fmt.Printf("Version is: %s\n", Version)
-		os.Exit(0)
-	}
-	//handles windows paths
+
 	if isWindows() {
 		*keyPathFlag = strings.Replace(*keyPathFlag, "/", "\\", -1)
 		*certPathFlag = strings.Replace(*certPathFlag, "/", "\\", -1)
+		*caKeyPathFlag = strings.Replace(*caKeyPathFlag, "/", "\\", -1)
+		*caCertPathFlag = strings.Replace(*caCertPathFlag, "/", "\\", -1)
 	}
 
 	configLogger(logFlag)
 	log.Warning("Starting udp_rx version: ", Version)
-
+	if *versionFlag {
+		fmt.Printf("Version is: %s\n", Version)
+		os.Exit(0)
+	}
 	//check if CPU profiling is on
 	if *cpuprofileFlag != "" {
 		f, err := os.Create(*cpuprofileFlag)
@@ -109,16 +110,11 @@ func main() {
 		newdatalen = newdatalen + 8
 	}
 
+	//create a certificate
 	//This will block until the year is > 1970
-	log.Debug("Blocking until time > 1970")
-	for {
-		ctime := time.Now()
-		if ctime.Year() > 1970 {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-	log.Debug("Time sync done, unblocking")
+	log.Debug("Creating Cert, will block until device time is > 1970")
+	certcreator.CreateCert(*certPathFlag, *keyPathFlag, *caKeyPathFlag, *caCertPathFlag, *caKeyPasswordFlag)
+	log.Debug("Cert created")
 
 	//load server cert as tls certs
 	cer, err := tls.LoadX509KeyPair(*certPathFlag, *keyPathFlag)
