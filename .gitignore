@@ -4,10 +4,12 @@
 *.log
 *.test
 
-/builds/*/*/*.exe
+# /builds/*/*/*.exe
 debug
 *.crt
 *.key
 *.pem
 *.pw
 udp_rx
+
+/builds
