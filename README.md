@@ -8,9 +8,9 @@ Please see gen_keys_readme.txt for creating/using SSL keys with udp_rx
 Please see IPTABLES_RULE.txt for a sample IPTABLES command to firewall off a port protected by udp_rx
 
 ## Export Control Notice
-Otis udp_rx software has been designed to utilize information security technology described Part 774 of the EAR Category 5 Part 2 but has been made publicly available in accordance with Part 742.15(b) and is therefore not subject to U.S. export regulations. 
+Otis udp_rx software has been designed to utilize information security technology described in the Category 5 – Part 2 of the Commerce Control List, within Part 774 of the Export Administration Regulations (“EAR”)(15 CFR 774).  However, the Otis udp_rx software has been made publicly available in accordance with Part 742.15(b) of the EAR and is therefore not subject to U.S. export regulations. 
 
-Before you download this software be aware that the country in which you are located may have restrictions related to the import, possession, use and/or reexport of encryption items.  It is your responsibility to comply with any applicable laws and regulations pertaining the import, possession, use and/or reexport of encryption items.
+Before downloading this software, be aware that the country in which you are located may have restrictions related to the import, download, possession, use and/or reexport of encryption items.  It is your responsibility to comply with any applicable laws and regulations pertaining the import, download, possession, use and/or reexport of encryption items.
 
 ## How to use it
 You have a UDP packet that you want to be sent to `192.168.1.250` with a destination port of of `4444`. The data field of that packet is 
