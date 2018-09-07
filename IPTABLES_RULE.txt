@@ -1,8 +1,11 @@
 ***The following command will firewall off a port for preventing a third party redirecting messages
 using udp_rx***
 
-sudo iptables -I input -i eth0 -p udp --dport [port to REJECT] -j REJECT
+sudo iptables -I INPUT -i eth0 -p udp --dport [port to REJECT] -j REJECT
 
 ***NOTE
 You will need to do this rule for each port+interface, so if you have 2 devices and 2 ports
 you will need 4 rules!***
+
+**** To Delete a rule ****
+sudo iptables -D INPUT -i eth0 -p udp --dport [port to REJECT] -j REJECT
