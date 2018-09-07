@@ -13,3 +13,5 @@ debug
 udp_rx
 
 /builds
+/install_test
+udprx_firewall

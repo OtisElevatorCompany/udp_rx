@@ -14,7 +14,7 @@ import (
 
 func main() {
 	portsList := flag.String("portlist", "/etc/udp_rx/portslist", "Override the default ports list")
-	unsetFlag := flag.Bool("-unset", false, "if set to true, will unset the iptables rules")
+	unsetFlag := flag.Bool("unset", false, "if set to true, will unset the iptables rules")
 	flag.Parse()
 
 	// get a list of this machines interfaces

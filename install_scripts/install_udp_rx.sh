@@ -1,13 +1,13 @@
 # create a service user
 useradd -r udprx
 # create /etc/udp_rx directory
-mkdir /etc/udp_rx
+mkdir -p /etc/udp_rx
 chmod 755 /etc/udp_rx
 # move the default portlist to that directory
 cp portslist /etc/udp_rx/
-chown root /etc/udp_rx/portlist
-chgrp root /etc/udp_rx/portlist
-chmod 644 /etc/udp_rx/portlist
+chown root /etc/udp_rx/portslist
+chgrp root /etc/udp_rx/portslist
+chmod 644 /etc/udp_rx/portslist
 # move the default config file to that directory
 cp udp_rx_conf.json /etc/udp_rx/
 chown root /etc/udp_rx/udp_rx_conf.json
@@ -24,3 +24,6 @@ chmod 755 /usr/sbin/udp_rx
 chmod 755 /usr/sbin/udprx_firewall
 # move unit file to /lib/systemd/system
 cp udp_rx.service /lib/systemd/system
+chmod 644 /lib/systemd/system/udp_rx.service
+systemctl daemon-reload
+#systemctl start name.service
