@@ -10,8 +10,8 @@ WantedBy=multi-user.target
 [Service]
 User=udprx
 Group=udprx
-ExecStartPre=/etc/udp_rx/set_firewall
+ExecStartPre=/usr/sbin/udprx_firewall
 ExecStart=/usr/sbin/udp_rx
-ExecStartPost=/etc/udp_rx/set_firewall -unset
+ExecStartPost=-/usr/sbin/udprx_firewall -unset
 TimeoutSec=600
 Restart=on-failure
