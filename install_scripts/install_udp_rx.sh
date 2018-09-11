@@ -17,6 +17,40 @@ cp udp_rx_conf.json /etc/udp_rx/
 chown root /etc/udp_rx/udp_rx_conf.json
 chgrp root /etc/udp_rx/udp_rx_conf.json
 chmod 644 /etc/udp_rx/udp_rx_conf.json
+# if the keys and the CA cert exist, move them
+# key 
+if [ -e udp_rx.key ]
+then
+    echo "Found udp_rx.key, copying to /etc/udp_rx"
+    cp udp_rx.key /etc/udp_rx/
+    chown root /etc/udp_rx/udp_rx.key
+    chgrp root /etc/udp_rx/udp_rx.key
+    chmod 644 /etc/udp_rx/udp_rx.key
+else
+    echo "WARNING: Couldn't find udp_rx.key, you will need to set the location in the configuration file and/or move the file yourself"
+fi
+# cert
+if [ -e udp_rx.cert ]
+then
+    echo "Found udp_rx.cert, copying to /etc/udp_rx"
+    cp udp_rx.cert /etc/udp_rx/
+    chown root /etc/udp_rx/udp_rx.cert
+    chgrp root /etc/udp_rx/udp_rx.cert
+    chmod 644 /etc/udp_rx/udp_rx.cert
+else
+    echo "WARNING: Couldn't find udp_rx.cert, you will need to set the location in the configuration file and/or move the file yourself"
+fi
+# ca cert
+if [ -e ca.cert.pem ]
+then
+    echo "Found ca.cert.pem, copying to /etc/udp_rx"
+    cp ca.cert.pem /etc/udp_rx/
+    chown root /etc/udp_rx/ca.cert.pem
+    chgrp root /etc/udp_rx/ca.cert.pem
+    chmod 644 /etc/udp_rx/ca.cert.pem
+else
+    echo "WARNING: Couldn't find ca.cert.pem, you will need to set the location in the configuration file and/or move the file yourself"
+fi
 # move udp_rx and set_firewall to /usr/sbin
 echo "moving executables and setting permissions"
 cp udp_rx /usr/sbin/
