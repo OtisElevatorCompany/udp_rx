@@ -14,4 +14,5 @@ udp_rx
 
 /builds
 /install_test
+/installers
 udprx_firewall
