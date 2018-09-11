@@ -20,10 +20,10 @@ chown root /usr/sbin/udp_rx
 chgrp root /usr/sbin/udp_rx
 chown root /usr/sbin/udprx_firewall
 chgrp root /usr/sbin/udprx_firewall
-chmod 755 /usr/sbin/udp_rx
-chmod 755 /usr/sbin/udprx_firewall
+chmod 4755 /usr/sbin/udp_rx
+chmod 4755 /usr/sbin/udprx_firewall
 # move unit file to /lib/systemd/system
 cp udp_rx.service /lib/systemd/system
 chmod 644 /lib/systemd/system/udp_rx.service
 systemctl daemon-reload
-#systemctl start name.service
+#systemctl start udp_rx.service

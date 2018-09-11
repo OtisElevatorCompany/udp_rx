@@ -37,7 +37,6 @@ import (
 
 	certcreator "./cert_creator"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 //Version is a constant that is this verion of the code, according to OTIS standards
@@ -92,13 +91,13 @@ type confFile struct {
 func main() {
 	fmt.Printf("Starting udp_rx at: %s\n", time.Now())
 	//iniit the logger
-	log.SetOutput(&lumberjack.Logger{
-		Filename:   "udp_rx.log",
-		MaxSize:    500, // megabytes
-		MaxBackups: 3,
-		MaxAge:     28,   //days
-		Compress:   true, // disabled by default
-	})
+	// log.SetOutput(&lumberjack.Logger{
+	// 	Filename:   "udp_rx.log",
+	// 	MaxSize:    500, // megabytes
+	// 	MaxBackups: 3,
+	// 	MaxAge:     28,   //days
+	// 	Compress:   true, // disabled by default
+	// })
 	fmt.Printf("Logger configured at: %s\n", time.Now())
 	//modify the defaults if we're on windows
 	if isWindows() {
@@ -126,7 +125,7 @@ func main() {
 	if err == nil {
 		setConfigValues(conf, listenAddrFlag, keyPathFlag, certPathFlag, caCertPathFlag)
 	} else {
-		log.Warn("Error parsing the config file. Error: %s", err.Error())
+		log.Warn("Error parsing the config file. Error: ", err.Error())
 	}
 	// handle differences between command line args and config file
 	//handles windows paths
