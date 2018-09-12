@@ -15,6 +15,16 @@ tools = [
 ]
 # get and save the current directory
 cwd = os.getcwd()
+# get the deps
+deps = [
+    "github.com/sirupsen/logrus",
+    "gopkg.in/natefinch/lumberjack.v2"
+]
+for dep in deps:
+    cmd = ["go", "get", dep]
+    buildresult = subprocess.run(cmd)
+    if buildresult.returncode != 0:
+        print("ERROR Getting dependency: {}".format(dep))
 
 # create the directories
 print("Creating Build Directories")
@@ -36,7 +46,7 @@ for system, envargs in operating_systems.items():
         command.append("go")
         command.append("build")
         print("Tool: {}, command: {}".format(tool, command))
-        buildresult = subprocess.run(command)        
+        buildresult = subprocess.run(command)
         if buildresult.returncode != 0:
             print("ERROR BUILDING: {}-{}".format(tool, system))
         else:
