@@ -37,6 +37,7 @@ import (
 
 	certcreator "./cert_creator"
 	log "github.com/sirupsen/logrus"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
 //Version is a constant that is this verion of the code, according to OTIS standards
@@ -90,15 +91,7 @@ type confFile struct {
 
 func main() {
 	fmt.Printf("Starting udp_rx at: %s\n", time.Now())
-	//iniit the logger
-	// log.SetOutput(&lumberjack.Logger{
-	// 	Filename:   "udp_rx.log",
-	// 	MaxSize:    500, // megabytes
-	// 	MaxBackups: 3,
-	// 	MaxAge:     28,   //days
-	// 	Compress:   true, // disabled by default
-	// })
-	fmt.Printf("Logger configured at: %s\n", time.Now())
+
 	//modify the defaults if we're on windows
 	if isWindows() {
 		modifyDefaultsWindows()
@@ -110,11 +103,24 @@ func main() {
 	cpuprofileFlag := flag.String("cpuprofile", "", "If specified writed a cpuprofile to the given filename")
 	maxProfilingPacketsFlag := flag.Int("maxprofpackets", 1000, "the maximum number of packets allowed to be forwarded during CPU profiling")
 	netProfilingFlag := flag.Bool("netprof", false, "turn on net profiling")
+	lumberjackFlag := flag.Bool("lumberjack", false, "use lumberjack local file logging")
 	//certificate flags
 	keyPathFlag := flag.String("keypath", defaultKeyPath, "Override the default key path/name which is ./keys/server.key")
 	certPathFlag := flag.String("certpath", defaultCertPath, "Override the default certificate path/name which is ./server.crt")
 	caCertPathFlag := flag.String("cacert", defaultCACertPath, "Set the Certificate Authority Certificate to add to the trust")
 	flag.Parse()
+	//iniit the logger
+	if *lumberjackFlag {
+		fmt.Println("using lumberjack")
+		log.SetOutput(&lumberjack.Logger{
+			Filename:   "udp_rx.log",
+			MaxSize:    500, // megabytes
+			MaxBackups: 3,
+			MaxAge:     28,   //days
+			Compress:   true, // disabled by default
+		})
+	}
+	fmt.Printf("Logger configured at: %s\n", time.Now())
 	//if version flag, print version and exit
 	if *versionFlag {
 		fmt.Printf("Version is: %s\n", Version)
