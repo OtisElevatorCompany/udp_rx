@@ -1,0 +1,17 @@
+# udp_rx systemd service file
+
+[Unit]
+Description=udp_rx udp tunnel
+After=network.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+User=udprx
+Group=udprx
+ExecStartPre=/usr/sbin/udprx_firewall
+ExecStart=/usr/sbin/udp_rx
+ExecStartPost=-/usr/sbin/udprx_firewall -unset
+TimeoutSec=600
+Restart=on-failure

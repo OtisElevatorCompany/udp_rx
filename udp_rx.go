@@ -23,6 +23,7 @@ import (
 	"bufio"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -36,7 +37,7 @@ import (
 
 	certcreator "./cert_creator"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/natefinch/lumberjack.v2"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
 //Version is a constant that is this verion of the code, according to OTIS standards
@@ -70,40 +71,74 @@ var newdatalen = 4
 //make an empty map decl for use when debug is on
 var forwardMap map[string]int
 
+// const startup arg values
+const defaultListenAddr = ""
+
+var confFilePath = "/etc/udp_rx/udp_rx_conf.json"
+var defaultKeyPath = "/etc/udp_rx/udp_rx.key"
+var defaultCertPath = "/etc/udp_rx/udp_rx.cert"
+var defaultCACertPath = "/etc/udp_rx/ca.cert.pem"
+
+var listenAddr, keyPath, certPath, caCertPath string
+
+// conf file struct
+type confFile struct {
+	ListenAddr string `json:"listenAddr"`
+	KeyPath    string `json:"keyPath"`
+	CertPath   string `json:"certPath"`
+	CaCertPath string `json:"caCertPath"`
+}
+
 func main() {
 	fmt.Printf("Starting udp_rx at: %s\n", time.Now())
-	//iniit the logger
-	log.SetOutput(&lumberjack.Logger{
-		Filename:   "udp_rx.log",
-		MaxSize:    500, // megabytes
-		MaxBackups: 3,
-		MaxAge:     28,   //days
-		Compress:   true, // disabled by default
-	})
-	fmt.Printf("Logger configured at: %s\n", time.Now())
 
+	//modify the defaults if we're on windows
+	if isWindows() {
+		modifyDefaultsWindows()
+	}
 	//get cand parse command line args
 	versionFlag := flag.Bool("version", false, "Print the Version number and exit")
 	logFlag := flag.Int("loglevel", 0, "level of logging. 0 is warn+, 1 is Info+, 2 is debug+")
-	listenAddrFlag := flag.String("bindaddr", "", "The IP address to bind the listening UDP socket to")
+	listenAddrFlag := flag.String("bindaddr", defaultListenAddr, "The IP address to bind the listening UDP socket to")
 	cpuprofileFlag := flag.String("cpuprofile", "", "If specified writed a cpuprofile to the given filename")
 	maxProfilingPacketsFlag := flag.Int("maxprofpackets", 1000, "the maximum number of packets allowed to be forwarded during CPU profiling")
 	netProfilingFlag := flag.Bool("netprof", false, "turn on net profiling")
+	lumberjackFlag := flag.Bool("lumberjack", false, "use lumberjack local file logging")
 	//certificate flags
-	keyPathFlag := flag.String("keypath", "./keys/server.key", "Override the default key path/name which is ./keys/server.key")
-	certPathFlag := flag.String("certpath", "./keys/server.crt", "Override the default certificate path/name which is ./server.crt")
-	caCertPathFlag := flag.String("cacert", "./keys/ca.cert.pem", "Set the Certificate Authority Certificate to add to the trust")
+	keyPathFlag := flag.String("keypath", defaultKeyPath, "Override the default key path/name which is ./keys/server.key")
+	certPathFlag := flag.String("certpath", defaultCertPath, "Override the default certificate path/name which is ./server.crt")
+	caCertPathFlag := flag.String("cacert", defaultCACertPath, "Set the Certificate Authority Certificate to add to the trust")
 	flag.Parse()
+	//iniit the logger
+	if *lumberjackFlag {
+		fmt.Println("using lumberjack")
+		log.SetOutput(&lumberjack.Logger{
+			Filename:   "udp_rx.log",
+			MaxSize:    500, // megabytes
+			MaxBackups: 3,
+			MaxAge:     28,   //days
+			Compress:   true, // disabled by default
+		})
+	}
+	fmt.Printf("Logger configured at: %s\n", time.Now())
 	//if version flag, print version and exit
 	if *versionFlag {
 		fmt.Printf("Version is: %s\n", Version)
 		os.Exit(0)
 	}
-	//handles windows paths
-	if isWindows() {
-		*keyPathFlag = strings.Replace(*keyPathFlag, "/", "\\", -1)
-		*certPathFlag = strings.Replace(*certPathFlag, "/", "\\", -1)
+	// load config file
+	conf, err := parseConfig(confFilePath)
+	if err == nil {
+		setConfigValues(conf, listenAddrFlag, keyPathFlag, certPathFlag, caCertPathFlag)
+	} else {
+		log.Warn("Error parsing the config file. Error: ", err.Error())
 	}
+	// handle differences between command line args and config file
+	//handles windows paths
+	// if isWindows() {
+	// 	*keyPathFlag = strings.Replace(*keyPathFlag, "/", "\\", -1)
+	// 	*certPathFlag = strings.Replace(*certPathFlag, "/", "\\", -1)
+	// }
 
 	configLogger(logFlag)
 	log.Warning("Starting udp_rx version: ", Version)
@@ -140,12 +175,12 @@ func main() {
 	log.Debug("Time sync done, unblocking")
 
 	//load server cert as tls certs
-	cer, err := tls.LoadX509KeyPair(*certPathFlag, *keyPathFlag)
+	cer, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 	//load the CA into the trusted store and return it for serverconf
-	rootCAs := configureRootCAs(caCertPathFlag)
+	rootCAs := configureRootCAs(&caCertPath)
 	//configure ssl
 	clientConf = &tls.Config{
 		RootCAs:      rootCAs,
@@ -160,9 +195,9 @@ func main() {
 	}
 
 	//start listening on the UDP port in go routine
-	go udpListener(listenAddrFlag)
+	go udpListener(&listenAddr)
 	//start listening on TCP on main thread (blocking main from returning)
-	tcpListener(listenAddrFlag)
+	tcpListener(&listenAddr)
 
 }
 
@@ -541,4 +576,65 @@ func configureRootCAs(caCertPathFlag *string) *x509.CertPool {
 		log.Warning("No certs appended, using system certs only")
 	}
 	return rootCAs
+}
+
+func parseConfig(path string) (confFile, error) {
+	jsonFile, err := os.Open(path)
+	if err != nil {
+		return confFile{}, err
+	}
+	defer jsonFile.Close()
+	byteValue, err := ioutil.ReadAll(jsonFile)
+	if err != nil {
+		return confFile{}, err
+	}
+	var conf confFile
+	err = json.Unmarshal(byteValue, &conf)
+	return conf, nil
+}
+
+func setConfigValues(conf confFile, listAddrArg, keyPathArg, certPathArg, caCertPathArg *string) {
+	// listen addr
+	if *listAddrArg != defaultListenAddr {
+		listenAddr = *listAddrArg
+	} else if conf.ListenAddr != defaultListenAddr {
+		listenAddr = conf.ListenAddr
+	} else {
+		listenAddr = defaultListenAddr
+	}
+
+	// key
+	if *keyPathArg != defaultKeyPath {
+		keyPath = *keyPathArg
+	} else if conf.KeyPath != defaultKeyPath {
+		keyPath = conf.KeyPath
+	} else {
+		keyPath = defaultKeyPath
+	}
+
+	// cert
+	if *certPathArg != defaultCertPath {
+		certPath = *certPathArg
+	} else if conf.CertPath != defaultCertPath {
+		certPath = conf.CertPath
+	} else {
+		certPath = defaultCertPath
+	}
+
+	// ca cert
+	if *caCertPathArg != defaultCACertPath {
+		caCertPath = *caCertPathArg
+	} else if conf.CaCertPath != defaultCACertPath {
+		caCertPath = conf.CaCertPath
+	} else {
+		caCertPath = defaultCACertPath
+	}
+
+}
+
+func modifyDefaultsWindows() {
+	confFilePath = "c:\\programdata\\udp_rx\\udp_rx_conf.windows.json"
+	defaultKeyPath = "c:\\programdata\\udp_rx\\udp_rx.key"
+	defaultCertPath = "c:\\programdata\\udp_rx\\udp_rx.cert"
+	defaultCACertPath = "c:\\programdata\\udp_rx\\ca.cert.pem"
 }
