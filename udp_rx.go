@@ -104,6 +104,8 @@ func main() {
 	maxProfilingPacketsFlag := flag.Int("maxprofpackets", 1000, "the maximum number of packets allowed to be forwarded during CPU profiling")
 	netProfilingFlag := flag.Bool("netprof", false, "turn on net profiling")
 	lumberjackFlag := flag.Bool("lumberjack", false, "use lumberjack local file logging")
+	// configuration filepath override
+	confFileFlag := flag.String("conf", confFilePath, "Override the default configuration filepath")
 	//certificate flags
 	keyPathFlag := flag.String("keypath", defaultKeyPath, "Override the default key path/name which is ./keys/server.key")
 	certPathFlag := flag.String("certpath", defaultCertPath, "Override the default certificate path/name which is ./server.crt")
@@ -127,7 +129,7 @@ func main() {
 		os.Exit(0)
 	}
 	// load config file
-	conf, err := parseConfig(confFilePath)
+	conf, err := parseConfig(*confFileFlag)
 	if err == nil {
 		setConfigValues(conf, listenAddrFlag, keyPathFlag, certPathFlag, caCertPathFlag)
 	} else {
