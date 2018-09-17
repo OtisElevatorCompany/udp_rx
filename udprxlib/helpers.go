@@ -16,6 +16,8 @@
 // responsibility to comply with any applicable laws and regulations
 // pertaining the import, download, possession, use and/or reexport of
 // encryption items.
+
+// Package udprxlib is the driver for udprx
 package udprxlib
 
 import (

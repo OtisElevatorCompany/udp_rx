@@ -16,6 +16,8 @@
 // responsibility to comply with any applicable laws and regulations
 // pertaining the import, download, possession, use and/or reexport of
 // encryption items.
+
+// Package udprxlib is the driver for udprx
 package udprxlib
 
 import (
@@ -58,6 +60,9 @@ var RemoteTLSPort = ":55554"
 //is considered by us to be 'timed out'
 var connTimeoutVal float64 = 10
 
+// TCPSocketListener is the tls socket listener
+var TCPSocketListener net.Listener
+
 // TCPListener is the tcp socket loop for udprx inbound connections
 func TCPListener(listenAddrFlag *string, serverConf *tls.Config) {
 	listenAddr := fmt.Sprintf("%s:55554", *listenAddrFlag)
@@ -65,6 +70,7 @@ func TCPListener(listenAddrFlag *string, serverConf *tls.Config) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	TCPSocketListener = ln
 	//create UDP socket. On windows this actually does nothing...
 	err = CreateUDPSocket()
 	log.Debug("Created UDP socket")
@@ -76,8 +82,8 @@ func TCPListener(listenAddrFlag *string, serverConf *tls.Config) {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			log.Error("error accepting new conn", err)
-			continue
+			log.Error("Error listening for TLS connections. Terminating TCPListener thread")
+			break
 		}
 		//put the connection into the mapping
 		remoteAddr := strings.Split(conn.RemoteAddr().String(), ":")[0]
@@ -92,6 +98,9 @@ func TCPListener(listenAddrFlag *string, serverConf *tls.Config) {
 	}
 }
 
+// UDPSocketListener is the udp socket listener
+var UDPSocketListener *net.UDPConn
+
 // UDPListener is the udp local listener for outbound connections
 func UDPListener(listenAddrFlag *string, clientConf *tls.Config) {
 	listenAddr := fmt.Sprintf("%s:55555", *listenAddrFlag)
@@ -104,6 +113,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config) {
 	}
 	//listen on the configured UDP port
 	ServerConn, err := net.ListenUDP("udp", ServerAddr)
+	UDPSocketListener = ServerConn
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -114,6 +124,10 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config) {
 	log.Info("Ready to accept connections...")
 	for {
 		n, src, err := ServerConn.ReadFromUDP(buf)
+		if err != nil {
+			log.Error("Error reading from UDP port. Terminating UDP thread. Error: ", err)
+			break
+		}
 		//parse dest addr and dest port
 		destAddr := fmt.Sprintf("%d.%d.%d.%d", buf[0], buf[1], buf[2], buf[3])
 		farport := (int(buf[4]) << 8) + int(buf[5])
