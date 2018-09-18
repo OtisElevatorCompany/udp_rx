@@ -19,7 +19,7 @@
 // pertaining the import, download, possession, use and/or reexport of
 // encryption items.
 
-package main
+package udprxlib
 
 import (
 	"net"

@@ -28,6 +28,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"os"
 	"runtime/pprof"
 	"strings"
 	"sync"
@@ -37,13 +38,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var profiling = false
+var cpuProfiling = false
 var netProfiling = false
 var maxProfilingPackets = 1000
 var newdatalen = 4
 
-//make an empty map decl for use when debug is on
-var forwardMap map[string]int
+// ForwardMap should be set to not nil if debug is on
+var ForwardMap map[string]int
 
 //this mutex protects the TLS connection cache
 var mutexMap = make(map[string]*sync.Mutex)
@@ -56,40 +57,49 @@ var lastConnFail = make(map[string]time.Time)
 //RemoteTLSPort is the port of the remote TLS server (also the port of the local TLS server)
 var RemoteTLSPort = ":55554"
 
-//static variable controlling how long to wait before a connection
-//is considered by us to be 'timed out'
-var connTimeoutVal float64 = 10
+// ConnTimeoutVal is a variable controlling how long to wait (in seconds)
+// before a connection is considered by us to be 'timed out'
+var ConnTimeoutVal float64 = 10
 
 // TCPSocketListener is the tls socket listener
 var TCPSocketListener net.Listener
 
 // TCPListener is the tcp socket loop for udprx inbound connections
-func TCPListener(listenAddrFlag *string, serverConf *tls.Config) {
+func TCPListener(listenAddrFlag *string, serverConf *tls.Config, done chan error) {
 	listenAddr := fmt.Sprintf("%s:55554", *listenAddrFlag)
 	ln, err := tls.Listen("tcp", listenAddr, serverConf)
 	if err != nil {
-		log.Fatal(err)
+		log.Error(err)
+		done <- err
+		return
 	}
 	TCPSocketListener = ln
 	//create UDP socket. On windows this actually does nothing...
 	err = CreateUDPSocket()
-	log.Debug("Created UDP socket")
 	if err != nil {
-		log.Fatal("Couldn't create udp socket", err)
+		log.WithFields(
+			log.Fields{
+				"error": err,
+			}).Error("Couldn't create udp socket")
+		done <- err
+		return
 	}
+	log.Debug("Created UDP socket")
 	defer ln.Close()
 	log.Info("Ready to accept TLS connections...")
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			log.Error("Error listening for TLS connections. Terminating TCPListener thread")
-			break
+			log.WithFields(
+				log.Fields{
+					"error": err,
+				}).Error("Error listening for TLS connections. Terminating TCPListener thread")
+			done <- err
+			return
 		}
 		//put the connection into the mapping
 		remoteAddr := strings.Split(conn.RemoteAddr().String(), ":")[0]
 		if tlsconn, ok := conn.(*tls.Conn); ok {
-			//fmt.Println("yes it's TLS")
-			//fmt.Println(tlsconn)
 			addConn(remoteAddr, tlsconn)
 		}
 
@@ -102,20 +112,27 @@ func TCPListener(listenAddrFlag *string, serverConf *tls.Config) {
 var UDPSocketListener *net.UDPConn
 
 // UDPListener is the udp local listener for outbound connections
-func UDPListener(listenAddrFlag *string, clientConf *tls.Config) {
+func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error) {
 	listenAddr := fmt.Sprintf("%s:55555", *listenAddrFlag)
 	ServerAddr, err := net.ResolveUDPAddr("udp", listenAddr)
 	if err != nil {
 		log.WithFields(
 			log.Fields{
 				"error": err,
-			}).Fatal("Couldn't bind udp listening socket")
+			}).Error("Couldn't bind udp listening socket")
+		done <- err
+		return
 	}
 	//listen on the configured UDP port
 	ServerConn, err := net.ListenUDP("udp", ServerAddr)
 	UDPSocketListener = ServerConn
 	if err != nil {
-		log.Fatal(err)
+		log.WithFields(
+			log.Fields{
+				"error": err,
+			}).Error("Couldn't Listen to UDP")
+		done <- err
+		return
 	}
 	defer ServerConn.Close()
 
@@ -125,22 +142,26 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config) {
 	for {
 		n, src, err := ServerConn.ReadFromUDP(buf)
 		if err != nil {
-			log.Error("Error reading from UDP port. Terminating UDP thread. Error: ", err)
-			break
+			log.WithFields(
+				log.Fields{
+					"error": err,
+				}).Error("Error reading from UDP port. Terminating UDP thread.")
+			done <- err
+			return
 		}
 		//parse dest addr and dest port
 		destAddr := fmt.Sprintf("%d.%d.%d.%d", buf[0], buf[1], buf[2], buf[3])
 		farport := (int(buf[4]) << 8) + int(buf[5])
 		//debug logging
-		if forwardMap != nil {
+		if ForwardMap != nil {
 			fullAddr := fmt.Sprintf("%s:%d", destAddr, farport)
 			//if nothing in forward map
-			if forwardMap[fullAddr] == 0 {
-				forwardMap[fullAddr] = 1
+			if ForwardMap[fullAddr] == 0 {
+				ForwardMap[fullAddr] = 1
 				log.Debug("Forwarding first message to ", fullAddr)
 			} else {
-				forwardMap[fullAddr] = forwardMap[fullAddr] + 1
-				if forwardMap[fullAddr]%100 == 0 {
+				ForwardMap[fullAddr] = ForwardMap[fullAddr] + 1
+				if ForwardMap[fullAddr]%100 == 0 {
 					log.Debug("Forwarded (another) 100 messages to ", fullAddr)
 				}
 			}
@@ -148,17 +169,31 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config) {
 		//end debug logging
 		//if farport is reserved, don't continue processing, get the next packet
 		if farport == 0 || farport == 1023 {
-			log.Error("Got a bad dest port: ", farport)
+			log.WithFields(
+				log.Fields{
+					"error":     err,
+					"dest port": farport,
+				}).Error("Got a bad dest port")
 			continue
 		}
 		//if there was an error here, don't try and forward the packet
 		if err != nil {
-			log.Error(err)
+			log.WithFields(
+				log.Fields{
+					"error": err,
+				}).Error("Error in packet, not forwarding")
 			continue
 		}
 		//catch if the dest is a local IP address
 		isLocalHost := false
 		ips, err := certcreator.GetIps()
+		if err != nil {
+			log.WithFields(
+				log.Fields{
+					"error": err,
+				}).Error("Error getting local ips for localhost checking")
+			continue
+		}
 		//build an ipv4 address
 		destip := net.IPv4(buf[0], buf[1], buf[2], buf[3]).String()
 		for _, ip := range ips {
@@ -176,7 +211,10 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config) {
 			//skip forward packet and go straight to
 			err = SendUDP("127.0.0.1", destip, uint(src.Port), uint(farport), buf[6:], 0)
 			if err != nil {
-				log.Error("Error sending to localhost")
+				log.WithFields(
+					log.Fields{
+						"error": err,
+					}).Error("Error sending to localhost")
 			}
 		} else {
 			//otherwise forward to dest
@@ -206,6 +244,32 @@ func ConfigureRootCAs(caCertPathFlag *string) *x509.CertPool {
 		log.Warning("No certs appended, using system certs only")
 	}
 	return rootCAs
+}
+
+// EnableNetProfiling turns on network profiling features
+func EnableNetProfiling(numPackets int) {
+	newdatalen = newdatalen + 8
+	if cpuProfiling {
+		log.Warning("You should not cpu and network profile at the same time!")
+	}
+	netProfiling = true
+	maxProfilingPackets = numPackets
+}
+
+// EnableCPUProfiling turns on cpu profiling
+func EnableCPUProfiling(numPackets int, profileFilePath *string) {
+	if netProfiling {
+		log.Warning("You should not cpu and network profile at the same time!")
+	}
+	cpuProfiling = true
+	maxProfilingPackets = numPackets
+	f, err := os.Create(*profileFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(f)
+
+	log.Warning("CPU profiling started")
 }
 
 func addConn(addr string, conn *tls.Conn) {
@@ -316,24 +380,24 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 			return
 		}
 		//profiling
-		if profiling {
+		if cpuProfiling {
 			counter++
 			if counter > maxProfilingPackets {
 				log.Warning("Stopping CPU profiling")
 				pprof.StopCPUProfile()
-				profiling = false
+				cpuProfiling = false
 			}
 		}
 		//debug logging code
-		if forwardMap != nil {
+		if ForwardMap != nil {
 			//this string is in form [fromIpAddress]-[destination port]
 			debugmapstring := fmt.Sprintf("%s-%d", rxip, destport)
-			if forwardMap[debugmapstring] == 0 {
-				forwardMap[debugmapstring] = 1
+			if ForwardMap[debugmapstring] == 0 {
+				ForwardMap[debugmapstring] = 1
 				log.Debug("Forwarding first message to ", debugmapstring)
 			} else {
-				forwardMap[debugmapstring] = forwardMap[debugmapstring] + 1
-				if forwardMap[debugmapstring]%100 == 0 {
+				ForwardMap[debugmapstring] = ForwardMap[debugmapstring] + 1
+				if ForwardMap[debugmapstring]%100 == 0 {
 					log.Debug("Forwarded (another) 100 messages to ", debugmapstring)
 				}
 			}
@@ -399,7 +463,7 @@ func getConn(addr string, conf *tls.Config, remotePort string) (*tls.Conn, error
 	//also check
 	conn := connMap[addr]
 	if conn == nil {
-		if time.Since(lastConnFail[addr]).Seconds() < connTimeoutVal {
+		if time.Since(lastConnFail[addr]).Seconds() < ConnTimeoutVal {
 			return nil, &connTimeoutError{"Connection hasn't timed out"}
 		}
 		log.Info("creating new cached connection for: ", addr)
@@ -413,7 +477,7 @@ func getConn(addr string, conf *tls.Config, remotePort string) (*tls.Conn, error
 		//start recieving on this new connection too: (tls.Conn implements net.Conn interface)
 		go handleConnection(newconn, SendUDP)
 		//debug code
-		if forwardMap != nil {
+		if ForwardMap != nil {
 			connstate := newconn.ConnectionState()
 			log.WithFields(log.Fields{
 				"Version":                 connstate.Version,

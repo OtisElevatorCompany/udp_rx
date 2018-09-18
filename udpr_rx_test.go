@@ -20,6 +20,8 @@ package main
 
 import (
 	"testing"
+
+	"./udprxlib"
 )
 
 //TestLogConfig checks the logger configuration method
@@ -30,27 +32,6 @@ func TestLogConfig(t *testing.T) {
 	configLogger(&t0)
 	configLogger(&t1)
 	configLogger(&t2)
-}
-
-// TestParseConfig tests parsing the config file
-func TestParseConfig(t *testing.T) {
-	conf, err := parseConfig("./udp_rx_conf.json")
-	if err != nil {
-		t.Errorf("Couldn't parse config. Error: %s", err.Error())
-		return
-	}
-	if conf.ListenAddr != "" {
-		t.Error("Wrong default listen address")
-	}
-	if conf.KeyPath != "/etc/udp_rx/udp_rx.key" {
-		t.Error("Wrong keypath")
-	}
-	if conf.CertPath != "/etc/udp_rx/udp_rx.cert" {
-		t.Error("Wrong cert path")
-	}
-	if conf.CaCertPath != "/etc/udp_rx/ca.cert.pem" {
-		t.Errorf("Wrong ca path. Path: %s", conf.CaCertPath)
-	}
 }
 
 func TestModifyForWindows(t *testing.T) {
@@ -75,7 +56,7 @@ func TestModifyForWindows(t *testing.T) {
 
 func TestSetConfigValues(t *testing.T) {
 	// make a confFile with some known values
-	conf := confFile{
+	conf := udprxlib.ConfFile{
 		ListenAddr: "abc",
 		KeyPath:    "def",
 		CertPath:   "foo",

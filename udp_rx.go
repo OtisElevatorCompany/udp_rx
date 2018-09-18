@@ -21,13 +21,9 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"runtime/pprof"
-	"sync"
 	"time"
 
 	"./udprxlib"
@@ -37,35 +33,14 @@ import (
 )
 
 //Version is a constant that is this verion of the code, according to OTIS standards
-const Version = "A1531825AAA"
+const Version = "A1631825AAA"
 
 //RemoteTLSPort is the port of the remote TLS server (also the port of the local TLS server)
 const RemoteTLSPort = ":55554"
 
-//static variable controlling how long to wait before a connection
-//is considered by us to be 'timed out'
-var connTimeoutVal float64 = 10
-
 //tls config
 var clientConf *tls.Config
 var serverConf *tls.Config
-
-//this mutex protects the TLS connection cache
-var mutexMap = make(map[string]*sync.Mutex)
-var mutexWriterMutex = &sync.Mutex{}
-
-//connMap is a hashmap of strings (ip addresses in string form) to tls connection pointers
-var connMap = make(map[string]*tls.Conn)
-var lastConnFail = make(map[string]time.Time)
-
-//command line effected variables
-var profiling = false
-var maxProfilingPackets = 1000
-var netProfiling = false
-var newdatalen = 4
-
-//make an empty map decl for use when debug is on
-var forwardMap map[string]int
 
 // const startup arg values
 const defaultListenAddr = ""
@@ -76,14 +51,6 @@ var defaultCertPath = "/etc/udp_rx/udp_rx.cert"
 var defaultCACertPath = "/etc/udp_rx/ca.cert.pem"
 
 var listenAddr, keyPath, certPath, caCertPath string
-
-// conf file struct
-type confFile struct {
-	ListenAddr string `json:"listenAddr"`
-	KeyPath    string `json:"keyPath"`
-	CertPath   string `json:"certPath"`
-	CaCertPath string `json:"caCertPath"`
-}
 
 func main() {
 	fmt.Printf("Starting udp_rx at: %s\n", time.Now())
@@ -125,7 +92,7 @@ func main() {
 		os.Exit(0)
 	}
 	// load config file
-	conf, err := parseConfig(*confFileFlag)
+	conf, err := udprxlib.ParseConfig(*confFileFlag)
 	if err == nil {
 		setConfigValues(conf, listenAddrFlag, keyPathFlag, certPathFlag, caCertPathFlag)
 	} else {
@@ -143,22 +110,15 @@ func main() {
 
 	//check if CPU profiling is on
 	if *cpuprofileFlag != "" {
-		f, err := os.Create(*cpuprofileFlag)
-		if err != nil {
-			log.Fatal(err)
-		}
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
-		profiling = true
-	}
-	if *maxProfilingPacketsFlag != 1000 {
-		log.Warning("overriding number of profiling packets to ", *maxProfilingPacketsFlag)
-		maxProfilingPackets = *maxProfilingPacketsFlag
+		log.Warning("Turning on cpu profling...")
+		udprxlib.EnableCPUProfiling(*maxProfilingPacketsFlag, cpuprofileFlag)
 	}
 	//set net profiling
-	netProfiling = *netProfilingFlag
-	if netProfiling {
-		newdatalen = newdatalen + 8
+	if *netProfilingFlag {
+		if *maxProfilingPacketsFlag != 1000 {
+			log.Warning("overriding number of profiling packets to ", *maxProfilingPacketsFlag)
+		}
+		udprxlib.EnableNetProfiling(*maxProfilingPacketsFlag)
 	}
 
 	//This will block until the year is > 1970
@@ -193,9 +153,11 @@ func main() {
 	}
 
 	//start listening on the UDP port in go routine
-	go udprxlib.UDPListener(&listenAddr, clientConf)
+	udpListenerDone := make(chan error, 1)
+	go udprxlib.UDPListener(&listenAddr, clientConf, udpListenerDone)
 	//start listening on TCP on main thread (blocking main from returning)
-	udprxlib.TCPListener(&listenAddr, serverConf)
+	tcpListenerDone := make(chan error, 1)
+	udprxlib.TCPListener(&listenAddr, serverConf, tcpListenerDone)
 }
 
 func configLogger(logFlag *int) error {
@@ -210,27 +172,12 @@ func configLogger(logFlag *int) error {
 	} else {
 		log.SetLevel(log.DebugLevel)
 		log.Debug("LogLevel set to Debug")
-		forwardMap = make(map[string]int)
+		udprxlib.ForwardMap = make(map[string]int)
 	}
 	return nil
 }
 
-func parseConfig(path string) (confFile, error) {
-	jsonFile, err := os.Open(path)
-	if err != nil {
-		return confFile{}, err
-	}
-	defer jsonFile.Close()
-	byteValue, err := ioutil.ReadAll(jsonFile)
-	if err != nil {
-		return confFile{}, err
-	}
-	var conf confFile
-	err = json.Unmarshal(byteValue, &conf)
-	return conf, nil
-}
-
-func setConfigValues(conf confFile, listAddrArg, keyPathArg, certPathArg, caCertPathArg *string) {
+func setConfigValues(conf udprxlib.ConfFile, listAddrArg, keyPathArg, certPathArg, caCertPathArg *string) {
 	// listen addr
 	if *listAddrArg != defaultListenAddr {
 		listenAddr = *listAddrArg
@@ -274,4 +221,8 @@ func modifyDefaultsWindows() {
 	defaultKeyPath = "c:\\programdata\\udp_rx\\udp_rx.key"
 	defaultCertPath = "c:\\programdata\\udp_rx\\udp_rx.cert"
 	defaultCACertPath = "c:\\programdata\\udp_rx\\ca.cert.pem"
+}
+
+func isWindows() bool {
+	return os.PathSeparator == '\\' && os.PathListSeparator == ';'
 }
