@@ -272,6 +272,18 @@ func EnableCPUProfiling(numPackets int, profileFilePath *string) {
 	log.Warning("CPU profiling started")
 }
 
+// StopThreads stops the TCP and UDP listeners and closes all connections
+func StopThreads() {
+	// close sockets
+	TCPSocketListener.Close()
+	UDPSocketListener.Close()
+	// close all open connections
+	for _, conn := range connMap {
+		conn.Close()
+	}
+	connMap = make(map[string]*tls.Conn)
+}
+
 func addConn(addr string, conn *tls.Conn) {
 	//create a new mutex for this address if one doesn't exist
 	checkMutexMapMutex(addr)

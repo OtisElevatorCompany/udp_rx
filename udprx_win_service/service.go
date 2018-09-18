@@ -39,28 +39,39 @@ var elog debug.Log
 
 type myservice struct{}
 
-func (m *myservice) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
-	// setup service
-	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
-	changes <- svc.Status{State: svc.StartPending}
-	fasttick := time.Tick(500 * time.Millisecond)
-	slowtick := time.Tick(2 * time.Second)
-	tick := fasttick
-	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-	elog.Info(1, strings.Join(args, "-"))
+func startNetListeners() (chan error, chan error) {
 	// setup error channels
 	udpListenerChan := make(chan error, 1)
 	tcpListenerChan := make(chan error, 1)
 	// start the threads
 	go udprxlib.UDPListener(&listenAddr, clientConf, udpListenerChan)
 	go udprxlib.TCPListener(&listenAddr, serverConf, tcpListenerChan)
+	return udpListenerChan, tcpListenerChan
+}
+
+func (m *myservice) Execute(args []string, r <-chan svc.ChangeRequest, changes chan<- svc.Status) (ssec bool, errno uint32) {
+	// setup service
+	// accept stop means interactively being stopped by a user/the os
+	// accept shutdown means responding to a system shutdown event
+	// accept pause and continue means interactive pause and continue from user/the os
+	const cmdsAccepted = svc.AcceptStop | svc.AcceptShutdown | svc.AcceptPauseAndContinue
+	changes <- svc.Status{State: svc.StartPending}
+	elog.Info(startArgs, strings.Join(args, "-"))
+	// setup error channels
+	udpListenerChan, tcpListenerChan := startNetListeners()
+	changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
 loop:
 	for {
 		// block until one of these cases can run
 		select {
-		case <-tick:
-			//beep()
-			elog.Info(1, "beep")
+		case err := <-udpListenerChan:
+			elog.Error(udpThreadStopped, fmt.Sprintf("UDP Thread Stopped. Error: %s", err.Error()))
+			udprxlib.StopThreads()
+			changes <- svc.Status{State: svc.Stopped, Accepts: cmdsAccepted}
+		case err := <-tcpListenerChan:
+			elog.Error(tcpThreadStopped, fmt.Sprintf("TCP Thread Stopped. Error: %s", err.Error()))
+			udprxlib.StopThreads()
+			changes <- svc.Status{State: svc.Stopped, Accepts: cmdsAccepted}
 		case c := <-r:
 			switch c.Cmd {
 			case svc.Interrogate:
@@ -69,16 +80,19 @@ loop:
 				time.Sleep(100 * time.Millisecond)
 				changes <- c.CurrentStatus
 			case svc.Stop, svc.Shutdown:
-				// This breaks from the CASE, and then goes to LOOP
+				udprxlib.StopThreads()
+				// This breaks from the case and loop, going to StopPending
 				break loop
 			case svc.Pause:
+				udprxlib.StopThreads()
 				changes <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
-				tick = slowtick
+				//tick = slowtick
 			case svc.Continue:
+				udpListenerChan, tcpListenerChan = startNetListeners()
 				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-				tick = fasttick
+				//tick = fasttick
 			default:
-				elog.Error(1, fmt.Sprintf("unexpected control request #%d", c))
+				elog.Error(unexpectedControlRequest, fmt.Sprintf("unexpected control request #%d", c))
 			}
 		}
 	}
@@ -97,7 +111,7 @@ func runService(name string, isDebug bool) {
 		}
 	}
 	defer elog.Close()
-	elog.Info(1, "parsing udprx configuration")
+	elog.Info(parsingConfigFile, "parsing udprx configuration")
 	// check the default location for the file first
 	if _, err := os.Stat(confFilePath); os.IsNotExist(err) {
 		elog.Info(configurationFileError, "Couldn't find config file in programdata\\udp_rx. Trying locally")
@@ -130,17 +144,17 @@ func runService(name string, isDebug bool) {
 		ClientCAs:    rootCAs,
 	}
 	// config done
-	elog.Info(1, fmt.Sprintf("starting %s service", name))
+	elog.Info(startingService, fmt.Sprintf("starting %s service", name))
 	run := svc.Run
 	if isDebug {
 		run = debug.Run
 	}
 	err = run(name, &myservice{})
 	if err != nil {
-		elog.Error(1, fmt.Sprintf("%s service failed: %v", name, err))
+		elog.Error(serviceFailed, fmt.Sprintf("%s service failed: %v", name, err))
 		return
 	}
-	elog.Info(1, fmt.Sprintf("%s service stopped", name))
+	elog.Info(serviceStopped, fmt.Sprintf("%s service stopped", name))
 }
 
 func setConfigValues(conf udprxlib.ConfFile) {
