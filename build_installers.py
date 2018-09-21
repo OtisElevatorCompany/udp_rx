@@ -11,7 +11,8 @@ operating_systems = {
 }
 tools = [
     "udp_rx", 
-    "udprx_firewall"
+    "udprx_firewall",
+    "udp_rx_cert_creator"
 ]
 # get and save the current directory
 cwd = os.getcwd()
@@ -31,14 +32,18 @@ print("Creating Build Directories")
 for system, _ in operating_systems.items():
     os.makedirs("builds/{}".format(system), exist_ok=True)
     os.makedirs("udprx_firewall/builds/{}".format(system), exist_ok=True)
+    os.makedirs("udp_rx_cert_creator/builds/{}".format(system), exist_ok=True)
 
 # build udp_rx and udprx_firewall
 print("doing GO BUILDS")
 for system, envargs in operating_systems.items():
     os.chdir(cwd)
     for tool in tools:
+        os.chdir(cwd)
         if tool == "udprx_firewall":
             os.chdir("udprx_firewall")
+        elif tool == "udp_rx_cert_creator":
+            os.chdir("udp_rx_cert_creator")
         # build the build command and run build
         command = ["env"]
         for key, value in envargs.items():
@@ -70,6 +75,8 @@ for system, _ in operating_systems.items():
     for tool in tools:
         if tool == "udprx_firewall":
             pathprefix = "udprx_firewall/"
+        elif tool == "udp_rx_cert_creator":
+            pathprefix = "udp_rx_cert_creator/"
         else:
             pathprefix = ""
         if not system.startswith("windows"):
@@ -101,3 +108,4 @@ print("cleaning up...")
 for system, _ in operating_systems.items():
     os.removedirs("builds/{}".format(system))
     os.removedirs("udprx_firewall/builds/{}".format(system))
+    os.removedirs("udp_rx_cert_creator/builds/{}".format(system))
