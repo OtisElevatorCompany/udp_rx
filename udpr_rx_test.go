@@ -46,11 +46,11 @@ func TestModifyForWindows(t *testing.T) {
 	if defaultKeyPath != "c:\\programdata\\udp_rx\\udp_rx.key" {
 		t.Errorf("Error with windows key path. Path: %s", defaultKeyPath)
 	}
-	if defaultCertPath != "c:\\programdata\\udp_rx\\udp_rx.cert" {
-		t.Errorf("Error with windows cert path. Path: %s", defaultCertPath)
+	if defaultCertPath != "c:\\programdata\\udp_rx\\udp_rx.crt" {
+		t.Errorf("Error with windows crt path. Path: %s", defaultCertPath)
 	}
-	if defaultCACertPath != "c:\\programdata\\udp_rx\\ca.cert.pem" {
-		t.Errorf("Error with windows ca cert path. Path: %s", defaultCACertPath)
+	if defaultCACertPath != "c:\\programdata\\udp_rx\\ca.crt" {
+		t.Errorf("Error with windows ca crt path. Path: %s", defaultCACertPath)
 	}
 }
 

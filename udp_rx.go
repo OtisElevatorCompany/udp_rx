@@ -47,8 +47,8 @@ const defaultListenAddr = ""
 
 var confFilePath = "/etc/udp_rx/udp_rx_conf.json"
 var defaultKeyPath = "/etc/udp_rx/udp_rx.key"
-var defaultCertPath = "/etc/udp_rx/udp_rx.cert"
-var defaultCACertPath = "/etc/udp_rx/ca.cert.pem"
+var defaultCertPath = "/etc/udp_rx/udp_rx.crt"
+var defaultCACertPath = "/etc/udp_rx/ca.crt"
 
 var listenAddr, keyPath, certPath, caCertPath string
 
@@ -219,8 +219,8 @@ func setConfigValues(conf udprxlib.ConfFile, listAddrArg, keyPathArg, certPathAr
 func modifyDefaultsWindows() {
 	confFilePath = "c:\\programdata\\udp_rx\\udp_rx_conf.windows.json"
 	defaultKeyPath = "c:\\programdata\\udp_rx\\udp_rx.key"
-	defaultCertPath = "c:\\programdata\\udp_rx\\udp_rx.cert"
-	defaultCACertPath = "c:\\programdata\\udp_rx\\ca.cert.pem"
+	defaultCertPath = "c:\\programdata\\udp_rx\\udp_rx.crt"
+	defaultCACertPath = "c:\\programdata\\udp_rx\\ca.crt"
 }
 
 func isWindows() bool {

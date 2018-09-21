@@ -15,10 +15,10 @@ func TestParseConfig(t *testing.T) {
 	if conf.KeyPath != "/etc/udp_rx/udp_rx.key" {
 		t.Error("Wrong keypath")
 	}
-	if conf.CertPath != "/etc/udp_rx/udp_rx.cert" {
+	if conf.CertPath != "/etc/udp_rx/udp_rx.crt" {
 		t.Error("Wrong cert path")
 	}
-	if conf.CaCertPath != "/etc/udp_rx/ca.cert.pem" {
+	if conf.CaCertPath != "/etc/udp_rx/ca.crt" {
 		t.Errorf("Wrong ca path. Path: %s", conf.CaCertPath)
 	}
 }

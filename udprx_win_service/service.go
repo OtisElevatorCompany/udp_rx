@@ -22,8 +22,8 @@ import (
 
 var confFilePath = "c:\\programdata\\udp_rx\\udp_rx_conf.windows.json"
 var defaultKeyPath = "c:\\programdata\\udp_rx\\udp_rx.key"
-var defaultCertPath = "c:\\programdata\\udp_rx\\udp_rx.cert"
-var defaultCACertPath = "c:\\programdata\\udp_rx\\ca.cert.pem"
+var defaultCertPath = "c:\\programdata\\udp_rx\\udp_rx.crt"
+var defaultCACertPath = "c:\\programdata\\udp_rx\\ca.crt"
 
 // const startup arg values
 const defaultListenAddr = ""

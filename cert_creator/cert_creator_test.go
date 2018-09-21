@@ -31,12 +31,12 @@ func TestCreateCert(t *testing.T) {
 	var outputpath, caKeyPath, caCertPath string
 	if isWindows() {
 		outputpath = "..\\keys\\server.key"
-		caKeyPath = "..\\keys\\ca.key.pem"
-		caCertPath = "..\\keys\\ca.cert.pem"
+		caKeyPath = "..\\keys\\ca.key"
+		caCertPath = "..\\keys\\ca.crt"
 	} else {
 		outputpath = "../keys/server.key"
-		caKeyPath = "../keys/ca.key.pem"
-		caCertPath = "../keys/ca.cert.pem"
+		caKeyPath = "../keys/ca.key"
+		caCertPath = "../keys/ca.crt"
 	}
 	err := CreateCert("server.crt", outputpath, caKeyPath, caCertPath, "")
 	if err != nil {
@@ -48,12 +48,12 @@ func TestEncryptedCert(t *testing.T) {
 	var outputpath, caKeyPath, caCertPath string
 	if isWindows() {
 		outputpath = "..\\keys\\encrypted_keys\\server.key"
-		caKeyPath = "..\\keys\\encrypted_keys\\ca.key.pem"
-		caCertPath = "..\\keys\\encrypted_keys\\ca.cert.pem"
+		caKeyPath = "..\\keys\\encrypted_keys\\ca.key"
+		caCertPath = "..\\keys\\encrypted_keys\\ca.crt"
 	} else {
 		outputpath = "../keys/encrypted_keys/server.key"
-		caKeyPath = "../keys/encrypted_keys/ca.key.pem"
-		caCertPath = "../keys/encrypted_keys/ca.cert.pem"
+		caKeyPath = "../keys/encrypted_keys/ca.key"
+		caCertPath = "../keys/encrypted_keys/ca.crt"
 	}
 	err := CreateCert("server.crt", outputpath, caKeyPath, caCertPath, "N0y#Xr7mwy")
 	if err != nil {
@@ -62,8 +62,8 @@ func TestEncryptedCert(t *testing.T) {
 }
 
 func TestCreateCertInMemory(t *testing.T) {
-	caKeyPath := "..\\keys\\ca.key.pem"
-	caCertPath := "..\\keys\\ca.cert.pem"
+	caKeyPath := "..\\keys\\ca.key"
+	caCertPath := "..\\keys\\ca.crt"
 	if !isWindows() {
 		caKeyPath = strings.Replace(caKeyPath, "\\", "/", -1)
 		caCertPath = strings.Replace(caCertPath, "\\", "/", -1)

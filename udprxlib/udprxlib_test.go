@@ -47,7 +47,7 @@ func TestCheckMutexMap(t *testing.T) {
 func TestGetConn(t *testing.T) {
 	//setup certs
 	var cacertpath, cakeypath, certpath, keypath string
-	cacertpath = "../keys/ca.cert.pem"
+	cacertpath = "../keys/ca.crt"
 	keypath = "../keys/server.key"
 	certpath = "../keys/server.crt"
 	if isWindows() {
@@ -172,7 +172,7 @@ func tcpServer(ln net.Listener) {
 func TestForwardPacket(t *testing.T) {
 	//setup certs
 	var cacertpath, cakeypath, certpath, keypath string
-	cacertpath = "../keys/ca.cert.pem"
+	cacertpath = "../keys/ca.crt"
 	keypath = "../keys/server.key"
 	certpath = "../keys/server.crt"
 	if isWindows() {
@@ -204,7 +204,7 @@ func TestForwardPacket(t *testing.T) {
 func listenTLS() {
 	//setup certs
 	var cacertpath, cakeypath, certpath, keypath string
-	cacertpath = "../keys/ca.cert.pem"
+	cacertpath = "../keys/ca.crt"
 	keypath = "../keys/server.key"
 	certpath = "../keys/server.crt"
 	if isWindows() {
