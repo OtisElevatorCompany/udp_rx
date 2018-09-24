@@ -192,16 +192,23 @@ func TestForwardPacket(t *testing.T) {
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{cer},
 	}
-	go listenTLS()
+	readyTLS := make(chan bool)
+	go listenTLS(readyTLS)
+	tlsReady := <-readyTLS
+	log.Info("tlsReady: %s", tlsReady)
+	//time.Sleep(5 * time.Second)
 	buf := make([]byte, 13)
 	buf[0] = 0x11
 	buf[1] = 0x92
 	for i := 0; i < 11; i++ {
 		buf[2+i] = (byte)(10 - i)
 	}
-	forwardPacket(clientConf, "127.0.0.1", buf, 55554, ":55553")
+	err = forwardPacket(clientConf, "127.0.0.1", buf, 55554, ":55553")
+	if err != nil {
+		t.Error("Error forwarding packets")
+	}
 }
-func listenTLS() {
+func listenTLS(readyTLS chan bool) {
 	//setup certs
 	var cacertpath, cakeypath, certpath, keypath string
 	cacertpath = "../keys/ca.crt"
@@ -225,6 +232,7 @@ func listenTLS() {
 		ClientCAs:    rootCAs,
 	}
 	lan, _ := tls.Listen("tcp", ":55553", serverConf)
+	readyTLS <- true
 	for {
 		conn, _ := lan.Accept()
 		defer conn.Close()
