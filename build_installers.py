@@ -14,13 +14,15 @@ tools = [
     "udprx_firewall",
     "udp_rx_cert_creator"
 ]
-# get and save the current directory
-cwd = os.getcwd()
-# get the deps
 deps = [
     "github.com/sirupsen/logrus",
     "gopkg.in/natefinch/lumberjack.v2"
 ]
+
+# get and save the current directory
+cwd = os.getcwd()
+
+# get the deps
 for dep in deps:
     cmd = ["go", "get", dep]
     buildresult = subprocess.run(cmd)

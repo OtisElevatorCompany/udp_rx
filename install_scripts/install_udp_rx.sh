@@ -1,3 +1,9 @@
+#!/bin/bash
+#check if root
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 
+   exit 1
+fi
 # create a service user
 echo "Creating User"
 useradd -r udprx
