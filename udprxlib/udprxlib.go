@@ -63,6 +63,7 @@ var ConnTimeoutVal float64 = 10
 
 // TCPSocketListener is the tls socket listener
 var TCPSocketListener net.Listener
+var handleConnectionFunc = handleConnection
 
 // TCPListener is the tcp socket loop for udprx inbound connections
 func TCPListener(listenAddrFlag *string, serverConf *tls.Config, done chan error) {
@@ -104,12 +105,13 @@ func TCPListener(listenAddrFlag *string, serverConf *tls.Config, done chan error
 		}
 
 		//go handle a connection in a gothread
-		go handleConnection(conn, SendUDP)
+		go handleConnectionFunc(conn, SendUDP)
 	}
 }
 
 // UDPSocketListener is the udp socket listener
 var UDPSocketListener *net.UDPConn
+var forwardPacketFunc = forwardPacket
 
 // UDPListener is the udp local listener for outbound connections
 func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error) {
@@ -218,7 +220,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 			}
 		} else {
 			//otherwise forward to dest
-			go forwardPacket(clientConf, destAddr, buf[4:n], src.Port, RemoteTLSPort)
+			go forwardPacketFunc(clientConf, destAddr, buf[4:n], src.Port, RemoteTLSPort)
 		}
 
 	}

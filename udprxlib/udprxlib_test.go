@@ -27,9 +27,24 @@ import (
 	"net"
 	"strings"
 	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
+
+//var cakeypath, certpath, keypath string
+var cacertpath = "../keys/ca.crt"
+var keypath = "../keys/server.key"
+var certpath = "../keys/server.crt"
+
+func modifyKeyPathsWindows() {
+	if isWindows() {
+		cacertpath = strings.Replace(cacertpath, "/", "\\", -1)
+		//cakeypath = strings.Replace(cakeypath, "/", "\\", -1)
+		keypath = strings.Replace(keypath, "/", "\\", -1)
+		certpath = strings.Replace(certpath, "/", "\\", -1)
+	}
+}
 
 //TestCheckMutexMap checks the checkMutexMapMutex method
 func TestCheckMutexMap(t *testing.T) {
@@ -46,16 +61,7 @@ func TestCheckMutexMap(t *testing.T) {
 //TestGetConn checks the getConn method
 func TestGetConn(t *testing.T) {
 	//setup certs
-	var cacertpath, cakeypath, certpath, keypath string
-	cacertpath = "../keys/ca.crt"
-	keypath = "../keys/server.key"
-	certpath = "../keys/server.crt"
-	if isWindows() {
-		cacertpath = strings.Replace(cacertpath, "/", "\\", -1)
-		cakeypath = strings.Replace(cakeypath, "/", "\\", -1)
-		keypath = strings.Replace(keypath, "/", "\\", -1)
-		certpath = strings.Replace(certpath, "/", "\\", -1)
-	}
+	modifyKeyPathsWindows()
 	rootCAs := ConfigureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
@@ -80,12 +86,7 @@ func TestGetConn(t *testing.T) {
 func setupTLS(rootCAs *x509.CertPool) net.Listener {
 	log.Warning("prepping incoming tls")
 	fmt.Println("prepping to handle incoming TLS...")
-	certpath := "../keys/server.crt"
-	keypath := "../keys/server.key"
-	if isWindows() {
-		certpath = strings.Replace(certpath, "/", "\\", -1)
-		keypath = strings.Replace(keypath, "/", "\\", -1)
-	}
+	modifyKeyPathsWindows()
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
 		log.Fatal(err)
@@ -171,16 +172,7 @@ func tcpServer(ln net.Listener) {
 //TestForwardPacket tests the forwardPacket method
 func TestForwardPacket(t *testing.T) {
 	//setup certs
-	var cacertpath, cakeypath, certpath, keypath string
-	cacertpath = "../keys/ca.crt"
-	keypath = "../keys/server.key"
-	certpath = "../keys/server.crt"
-	if isWindows() {
-		cacertpath = strings.Replace(cacertpath, "/", "\\", -1)
-		cakeypath = strings.Replace(cakeypath, "/", "\\", -1)
-		keypath = strings.Replace(keypath, "/", "\\", -1)
-		certpath = strings.Replace(certpath, "/", "\\", -1)
-	}
+	modifyKeyPathsWindows()
 	rootCAs := ConfigureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
@@ -194,8 +186,9 @@ func TestForwardPacket(t *testing.T) {
 	}
 	readyTLS := make(chan bool)
 	go listenTLS(readyTLS)
+	//block until readyTLS
 	tlsReady := <-readyTLS
-	log.Info("tlsReady: %s", tlsReady)
+	log.Infof("tlsReady: %t", tlsReady)
 	//time.Sleep(5 * time.Second)
 	buf := make([]byte, 13)
 	buf[0] = 0x11
@@ -210,16 +203,7 @@ func TestForwardPacket(t *testing.T) {
 }
 func listenTLS(readyTLS chan bool) {
 	//setup certs
-	var cacertpath, cakeypath, certpath, keypath string
-	cacertpath = "../keys/ca.crt"
-	keypath = "../keys/server.key"
-	certpath = "../keys/server.crt"
-	if isWindows() {
-		cacertpath = strings.Replace(cacertpath, "/", "\\", -1)
-		cakeypath = strings.Replace(cakeypath, "/", "\\", -1)
-		keypath = strings.Replace(keypath, "/", "\\", -1)
-		certpath = strings.Replace(certpath, "/", "\\", -1)
-	}
+	modifyKeyPathsWindows()
 	rootCAs := ConfigureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
@@ -265,4 +249,116 @@ func listenTLS(readyTLS chan bool) {
 		}
 		break
 	}
+}
+
+func TestTCPListener(t *testing.T) {
+	// setup test
+	modifyKeyPathsWindows()
+	listenAddrSting := ""
+	rootCAs := ConfigureRootCAs(&cacertpath)
+	cer, err := tls.LoadX509KeyPair(certpath, keypath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	serverConf := &tls.Config{
+		Certificates: []tls.Certificate{cer},
+		MinVersion:   tls.VersionTLS12,
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		ClientCAs:    rootCAs,
+	}
+	doneChan := make(chan error)
+	// override handleConnection
+	handleConnectionFunc = mockHandleConnection
+	//start the listener and send a message
+	go TCPListener(&listenAddrSting, serverConf, doneChan)
+	time.Sleep(time.Second * 3)
+	sendTLSMessage(t, cer, rootCAs)
+	//close the connection
+	TCPSocketListener.Close()
+	//get the done channel
+	err = <-doneChan
+	if err == nil {
+		t.Error("Should have gotten an error")
+	}
+}
+func sendTLSMessage(t *testing.T, cer tls.Certificate, rootCAs *x509.CertPool) {
+	clientConf := &tls.Config{
+		//InsecureSkipVerify: true,
+		RootCAs:      rootCAs,
+		Certificates: []tls.Certificate{cer},
+	}
+	conn, err := tls.Dial("tcp", "127.0.0.1:55554", clientConf)
+	if err != nil {
+		t.Fatalf("getConn returned an error. Error: %s", err.Error())
+	}
+	// write a message to
+	conn.Write([]byte{1, 2, 3})
+}
+func mockHandleConnection(conn net.Conn, sender sendUDPFn) {
+	//conn.Close()
+	b := make([]byte, 1024)
+	conn.Read(b)
+	return
+}
+
+var testUDPListenerT *testing.T
+
+func TestUDPListener(t *testing.T) {
+	modifyKeyPathsWindows()
+	testUDPListenerT = t
+	listenAddr := ""
+	rootCAs := ConfigureRootCAs(&cacertpath)
+	cer, err := tls.LoadX509KeyPair(certpath, keypath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	clientConf := &tls.Config{
+		//InsecureSkipVerify: true,
+		RootCAs:      rootCAs,
+		Certificates: []tls.Certificate{cer},
+	}
+	doneChan := make(chan error)
+	//start the UDP listener
+	forwardPacketFunc = mockForwardPacket
+	go UDPListener(&listenAddr, clientConf, doneChan)
+	time.Sleep(time.Second * 3)
+	//send a packet to the UDP listener
+	ServerAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:55555")
+	LocalAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal("error building testing udp sender")
+	}
+	conn, err := net.DialUDP("udp", LocalAddr, ServerAddr)
+	if err != nil {
+		t.Fatal("error connecting to udp listener")
+	}
+	b := []byte{192, 168, 1, 50, 11, 92, 5, 4}
+	_, err = conn.Write(b)
+	if err != nil {
+		t.Fatal("error writing to udp listener")
+	}
+	UDPSocketListener.Close()
+	//get the done channel
+	err = <-doneChan
+	if err == nil {
+		t.Error("Should have gotten an error")
+	}
+}
+func mockForwardPacket(conf *tls.Config, addr string, data []byte, srcprt int, remoteTLSPort string) error {
+	if addr != "192.168.1.50" {
+		testUDPListenerT.Fatal("Bad ip input to forward packet")
+	}
+	if data[0] != 11 {
+		testUDPListenerT.Fatal("Bad port byte 0")
+	}
+	if data[1] != 92 {
+		testUDPListenerT.Fatal("Bad port byte 1")
+	}
+	if data[2] != 5 {
+		testUDPListenerT.Fatal("Bad data byte 0")
+	}
+	if data[3] != 4 {
+		testUDPListenerT.Fatal("Bad data byte 1")
+	}
+	return nil
 }
