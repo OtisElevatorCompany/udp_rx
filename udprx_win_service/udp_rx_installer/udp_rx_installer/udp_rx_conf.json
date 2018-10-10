@@ -1,0 +1,6 @@
+{
+    "listenAddr": "",
+    "keyPath": "c:\\programdata\\udp_rx\\udp_rx.key",
+    "certPath": "c:\\programdata\\udp_rx\\udp_rx.crt",
+    "caCertPath": "c:\\programdata\\udp_rx\\ca.crt" 
+}
