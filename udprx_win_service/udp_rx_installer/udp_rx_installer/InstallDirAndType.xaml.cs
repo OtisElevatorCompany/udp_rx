@@ -16,18 +16,20 @@ using System.Windows.Shapes;
 namespace udp_rx_installer
 {
     /// <summary>
-    /// Interaction logic for License.xaml
+    /// Interaction logic for InstallDirAndType.xaml
     /// </summary>
-    public partial class License : Page
+    public partial class InstallDirAndType : Page
     {
-        public License()
+        public InstallDirAndType()
         {
             InitializeComponent();
         }
 
         private void Next_Click(object sender, RoutedEventArgs e)
         {
-            this.NavigationService.Navigate(new InstallDirAndType());
+            var selectedStartTypeString = (string)ServiceStartCombo.SelectionBoxItem;
+            App.Current.Properties["serviceStartType"] = selectedStartTypeString;
+            this.NavigationService.Navigate(new SecretsSelector());
         }
 
         private void Previous_Click(object sender, RoutedEventArgs e)
@@ -35,7 +37,6 @@ namespace udp_rx_installer
             this.NavigationService.GoBack();
             //Console.WriteLine("Previous clicked");
         }
-
         private void Exit_Click(object sender, RoutedEventArgs e)
         {
             MessageBoxResult messageBoxResult = System.Windows.MessageBox.Show("Are you sure you want to quit?", "Quit Confirmation", System.Windows.MessageBoxButton.YesNo);

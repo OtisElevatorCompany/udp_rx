@@ -16,6 +16,7 @@ using System.Threading;
 using System.IO;
 using System.Reflection;
 using System.Diagnostics;
+using static udp_rx_installer.udp_rx_install_runner;
 
 namespace udp_rx_installer
 {
@@ -32,7 +33,13 @@ namespace udp_rx_installer
 
         private async void InstallUdpRx()
         {
+            var startTypeString = (string)App.Current.Properties["serviceStartType"];
+            StartupType stype = StartupType.Manual;
+            if (startTypeString == "Manual") stype = StartupType.Manual;
+            else if (startTypeString == "Automatic - Delayed") stype = StartupType.AutomaticDelayed;
+            else if (startTypeString == "Automatic") stype = StartupType.Automatic;
             var ir = new udp_rx_install_runner();
+            ir.StartType = stype;
             await Task.Run(() => ir.RunInstaller("", "", ""));
             this.NavigationService.Navigate(new Finished());
         }
@@ -43,13 +50,13 @@ namespace udp_rx_installer
         public enum StartupType { Manual, Automatic, AutomaticDelayed}
         string _programfilespath;
         string _programdatapath;
-        StartupType _startType;
-        public udp_rx_install_runner(string ExePath = "c:\\program files\\udp_rx", string ConfAndKeysPath = "c:\\programdata\\udp_rx", StartupType startType = StartupType.Manual)
+        public StartupType StartType { get; set; }
+        public udp_rx_install_runner(string ExePath = "c:\\program files\\udp_rx", string ConfAndKeysPath = "c:\\programdata\\udp_rx", StartupType _startType = StartupType.Manual)
         {
             //TODO: validate paths
             _programfilespath = ExePath;
             _programdatapath = ConfAndKeysPath;
-            _startType = startType;
+            StartType = _startType;
         }
 
         public void RunInstaller(string cafilepath, string devkeyfilepath, string devcertfilepath)

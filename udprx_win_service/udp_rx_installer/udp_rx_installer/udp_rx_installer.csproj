@@ -70,6 +70,9 @@
     <Compile Include="Finished.xaml.cs">
       <DependentUpon>Finished.xaml</DependentUpon>
     </Compile>
+    <Compile Include="InstallDirAndType.xaml.cs">
+      <DependentUpon>InstallDirAndType.xaml</DependentUpon>
+    </Compile>
     <Compile Include="License.xaml.cs">
       <DependentUpon>License.xaml</DependentUpon>
     </Compile>
@@ -83,6 +86,10 @@
       <DependentUpon>WelcomeCopyright.xaml</DependentUpon>
     </Compile>
     <Page Include="Finished.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="InstallDirAndType.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

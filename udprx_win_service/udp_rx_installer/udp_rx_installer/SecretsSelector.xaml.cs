@@ -65,19 +65,20 @@ namespace udp_rx_installer
         private void InputFileButtonClick(object sender, RoutedEventArgs e)
         {
             Console.WriteLine("Input file clicked");
-            bool successSelect = false;
             string filetype = "";
             if(sender is Button)
             {
-                if (((Button)sender).Name.StartsWith("ca")) filetype = "cafile";
-                else if (((Button)sender).Name.StartsWith("devkey")) filetype = "key";
-                else if (((Button)sender).Name.StartsWith("devcert")) filetype = "cert";
+                var senderButton = (Button)sender;
+                if ((senderButton).Name.StartsWith("ca")) filetype = "cafile";
+                else if ((senderButton).Name.StartsWith("devkey")) filetype = "key";
+                else if ((senderButton).Name.StartsWith("devcert")) filetype = "cert";
             }
             else if(sender is TextBox)
             {
-                if (((TextBox)sender).Name.StartsWith("ca")) filetype = "cafile";
-                else if (((TextBox)sender).Name.StartsWith("devkey")) filetype = "key";
-                else if (((TextBox)sender).Name.StartsWith("devcert")) filetype = "cert";
+                var senderBox = (TextBox)sender;
+                if ((senderBox).Name.StartsWith("ca")) filetype = "cafile";
+                else if ((senderBox).Name.StartsWith("devkey")) filetype = "key";
+                else if ((senderBox).Name.StartsWith("devcert")) filetype = "cert";
             }
             if (filetype == "")
             {
@@ -95,46 +96,7 @@ namespace udp_rx_installer
                 else if (filetype == "cert") devcert_textbox.Text = (string)App.Current.Properties[filetype];
                 SecretsDirectory = System.IO.Path.GetDirectoryName(openFileDialog.FileName);
             }
-            //txtEditor.Text = File.ReadAllText(openFileDialog.FileName);
             //end new
-            //use the modern if available:
-            //if (CommonFileDialog.IsPlatformSupported)
-            //{
-            //    var folderSelectorDialog = new CommonOpenFileDialog();
-            //    folderSelectorDialog.EnsureReadOnly = true;
-            //    folderSelectorDialog.IsFolderPicker = false;
-            //    folderSelectorDialog.AllowNonFileSystemItems = false;
-            //    folderSelectorDialog.Multiselect = false;
-            //    folderSelectorDialog.InitialDirectory = SecretsDirectory;
-            //    folderSelectorDialog.Title = "Input File";
-            //    var folderresult = folderSelectorDialog.ShowDialog();
-            //    if (folderresult == CommonFileDialogResult.Ok)
-            //    {
-            //        App.Current.Properties[filetype] = folderSelectorDialog.FileName;
-            //        SecretsDirectory = System.IO.Path.GetDirectoryName(folderSelectorDialog.FileName);
-            //        successSelect = true;
-            //    }
-            //}
-            ////create open folder dialog
-            //else
-            //{
-            //    using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
-            //    {
-            //        var folderresult = dialog.ShowDialog();
-            //        if (folderresult == System.Windows.Forms.DialogResult.OK)
-            //        {
-            //            App.Current.Properties[filetype] = dialog.SelectedPath;
-            //            successSelect = true;
-            //        }
-            //    }
-            //}
-            //if (successSelect)
-            //{
-            //    //inputfile_textbox.Text = input_dir;
-            //    if (filetype == "cafile") ca_textbox.Text = (string)App.Current.Properties[filetype];
-            //    else if (filetype == "key") devkey_textbox.Text = (string)App.Current.Properties[filetype];
-            //    else if (filetype == "cert") devcert_textbox.Text = (string)App.Current.Properties[filetype];
-            //}
             CheckFiles();
         }
 
