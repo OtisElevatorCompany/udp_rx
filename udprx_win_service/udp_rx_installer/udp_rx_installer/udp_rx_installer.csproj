@@ -159,7 +159,26 @@
   <ItemGroup>
     <EmbeddedResource Include="udprx_win_service.exe" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="udp_rx_cert_creator.exe" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>echo "pre build commands"
+cd $(SolutionDir)\..\
+echo "building service"
+go build
+echo "service built, copying"
+copy udprx_win_service.exe .\udp_rx_installer\udp_rx_installer\
+echo "copying config file"
+copy ..\udp_rx_conf.windows.json .\udp_rx_installer\udp_rx_installer\udp_rx_conf.json
+echo "building cert creator"
+cd $(SolutionDir)\..\..\udp_rx_cert_creator
+go build
+echo "copying cert creator"
+copy udp_rx_cert_creator.exe ..\udprx_win_service\udp_rx_installer\udp_rx_installer\
+</PreBuildEvent>
+  </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

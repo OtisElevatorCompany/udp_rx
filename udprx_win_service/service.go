@@ -20,7 +20,7 @@ import (
 	"golang.org/x/sys/windows/svc/eventlog"
 )
 
-var confFilePath = "c:\\programdata\\udp_rx\\udp_rx_conf.windows.json"
+var confFilePath = "c:\\programdata\\udp_rx\\udp_rx_conf.json"
 var defaultKeyPath = "c:\\programdata\\udp_rx\\udp_rx.key"
 var defaultCertPath = "c:\\programdata\\udp_rx\\udp_rx.crt"
 var defaultCACertPath = "c:\\programdata\\udp_rx\\ca.crt"
@@ -115,7 +115,7 @@ func runService(name string, isDebug bool) {
 	// check the default location for the file first
 	if _, err := os.Stat(confFilePath); os.IsNotExist(err) {
 		elog.Info(configurationFileError, "Couldn't find config file in programdata\\udp_rx. Trying locally")
-		if _, err := os.Stat("udp_rx_conf.windows.json"); os.IsNotExist(err) {
+		if _, err := os.Stat(confFilePath); os.IsNotExist(err) {
 			elog.Info(configurationFileError, "Couldn't find config file locally. Running with defaults")
 			fmt.Println("File does not exist")
 		}

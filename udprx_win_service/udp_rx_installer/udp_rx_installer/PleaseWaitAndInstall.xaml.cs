@@ -71,6 +71,12 @@ namespace udp_rx_installer
             {
                 CopyStream(input, output);
             }
+            //also copy the cert creator
+            using (Stream input = assembly.GetManifestResourceStream("udp_rx_installer.udp_rx_cert_creator.exe"))
+            using (Stream output = File.Create(_programfilespath + "\\udp_rx_cert_creator.exe"))
+            {
+                CopyStream(input, output);
+            }
             //write the secrets to the programdata path
             string[] tocheck = { "cafile", "key", "cert" };
             foreach (var check in tocheck)
