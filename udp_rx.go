@@ -94,9 +94,10 @@ func main() {
 	// load config file
 	conf, err := udprxlib.ParseConfig(*confFileFlag)
 	if err == nil {
-		setConfigValues(conf, listenAddrFlag, keyPathFlag, certPathFlag, caCertPathFlag)
+		setConfigValues(&conf, listenAddrFlag, keyPathFlag, certPathFlag, caCertPathFlag)
 	} else {
 		log.Warn("Error parsing the config file. Error: ", err.Error())
+		setConfigValues(nil, listenAddrFlag, keyPathFlag, certPathFlag, caCertPathFlag)
 	}
 	// handle differences between command line args and config file
 	//handles windows paths
@@ -133,6 +134,8 @@ func main() {
 	log.Debug("Time sync done, unblocking")
 
 	//load server cert as tls certs
+	log.Debug("keypath: ", certPath)
+	log.Debug("certpath: ", keyPath)
 	cer, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		log.Fatal(err)
@@ -177,11 +180,11 @@ func configLogger(logFlag *int) error {
 	return nil
 }
 
-func setConfigValues(conf udprxlib.ConfFile, listAddrArg, keyPathArg, certPathArg, caCertPathArg *string) {
+func setConfigValues(conf *udprxlib.ConfFile, listAddrArg, keyPathArg, certPathArg, caCertPathArg *string) {
 	// listen addr
 	if *listAddrArg != defaultListenAddr {
 		listenAddr = *listAddrArg
-	} else if conf.ListenAddr != defaultListenAddr {
+	} else if conf != nil && conf.ListenAddr != defaultListenAddr {
 		listenAddr = conf.ListenAddr
 	} else {
 		listenAddr = defaultListenAddr
@@ -190,7 +193,7 @@ func setConfigValues(conf udprxlib.ConfFile, listAddrArg, keyPathArg, certPathAr
 	// key
 	if *keyPathArg != defaultKeyPath {
 		keyPath = *keyPathArg
-	} else if conf.KeyPath != defaultKeyPath {
+	} else if conf != nil && conf.KeyPath != defaultKeyPath {
 		keyPath = conf.KeyPath
 	} else {
 		keyPath = defaultKeyPath
@@ -199,7 +202,7 @@ func setConfigValues(conf udprxlib.ConfFile, listAddrArg, keyPathArg, certPathAr
 	// cert
 	if *certPathArg != defaultCertPath {
 		certPath = *certPathArg
-	} else if conf.CertPath != defaultCertPath {
+	} else if conf != nil && conf.CertPath != defaultCertPath {
 		certPath = conf.CertPath
 	} else {
 		certPath = defaultCertPath
@@ -208,7 +211,7 @@ func setConfigValues(conf udprxlib.ConfFile, listAddrArg, keyPathArg, certPathAr
 	// ca cert
 	if *caCertPathArg != defaultCACertPath {
 		caCertPath = *caCertPathArg
-	} else if conf.CaCertPath != defaultCACertPath {
+	} else if conf != nil && conf.CaCertPath != defaultCACertPath {
 		caCertPath = conf.CaCertPath
 	} else {
 		caCertPath = defaultCACertPath

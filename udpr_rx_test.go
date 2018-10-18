@@ -64,7 +64,7 @@ func TestSetConfigValues(t *testing.T) {
 	}
 	defLisAddr := defaultListenAddr
 	changedCertArg := "foobar"
-	setConfigValues(conf, &defLisAddr, &defaultKeyPath, &changedCertArg, &defaultCACertPath)
+	setConfigValues(&conf, &defLisAddr, &defaultKeyPath, &changedCertArg, &defaultCACertPath)
 	// listen addr and key path should be set from conf object
 	if listenAddr != "abc" {
 		t.Errorf("listen address is wrong. Value: %s", listenAddr)
