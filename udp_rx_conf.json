@@ -1,6 +1,6 @@
 {
     "listenAddr": "",
     "keyPath": "/etc/udp_rx/udp_rx.key",
-    "certPath": "/etc/udp_rx/udp_rx.cert",
-    "caCertPath": "/etc/udp_rx/ca.cert.pem" 
+    "certPath": "/etc/udp_rx/udp_rx.crt",
+    "caCertPath": "/etc/udp_rx/ca.crt" 
 }

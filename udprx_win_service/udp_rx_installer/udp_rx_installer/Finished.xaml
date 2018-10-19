@@ -1,0 +1,31 @@
+﻿<Page x:Class="udp_rx_installer.Finished"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:udp_rx_installer"
+      mc:Ignorable="d" 
+      d:DesignHeight="300" d:DesignWidth="500"
+      Title="udp_rx Installer"
+      Background="White">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!--350 is the height because resize is disabled for ease-->
+            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="*"></RowDefinition>
+            <RowDefinition Height="50"></RowDefinition>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Height="100" FontSize="40" Margin="5,0,0,0">Finished!</TextBlock>
+        
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="125"></ColumnDefinition>
+                <ColumnDefinition Width="125"></ColumnDefinition>
+                <ColumnDefinition Width="125"></ColumnDefinition>
+                <ColumnDefinition Width="125"></ColumnDefinition>
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="3" Height="40" Width="100" Click="done_click" Name="exit_button">Done</Button>
+        </Grid>
+    </Grid>
+</Page>
