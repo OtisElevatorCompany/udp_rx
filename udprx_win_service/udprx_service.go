@@ -31,6 +31,8 @@ import (
 	"golang.org/x/sys/windows/svc"
 )
 
+const Version = "A1731825AAA"
+
 func usage(errmsg string) {
 	fmt.Fprintf(os.Stderr,
 		"%s\n\n"+
@@ -74,6 +76,8 @@ func main() {
 		err = controlService(svcName, svc.Pause, svc.Paused)
 	case "continue":
 		err = controlService(svcName, svc.Continue, svc.Running)
+	case "version":
+		usage(fmt.Sprintf("Version: %s", Version))
 	default:
 		usage(fmt.Sprintf("invalid command %s", cmd))
 	}

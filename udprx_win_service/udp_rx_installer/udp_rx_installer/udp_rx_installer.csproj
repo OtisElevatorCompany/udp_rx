@@ -151,7 +151,9 @@
     <EmbeddedResource Include="udprx_win_service.exe" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="udp_rx_cert_creator.exe" />
+    <EmbeddedResource Include="udp_rx_cert_creator.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
