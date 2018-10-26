@@ -81,4 +81,4 @@ systemctl daemon-reload
 echo "udp_rx service is installed."
 echo "place keys into /etc/udp_rx or change the default configuration found in /etc/udp_rx/udp_rx_conf.json"
 echo "Run systemctl start udp_rx.service after the keys are installed"
-#systemctl start name.service
+#systemctl start name.service 
