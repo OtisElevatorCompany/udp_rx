@@ -78,7 +78,8 @@ echo "Installing the service"
 cp udp_rx.service /lib/systemd/system
 chmod 644 /lib/systemd/system/udp_rx.service
 systemctl daemon-reload
+systemctl enable udp_rx.service
 echo "udp_rx service is installed."
 echo "place keys into /etc/udp_rx or change the default configuration found in /etc/udp_rx/udp_rx_conf.json"
 echo "Run systemctl start udp_rx.service after the keys are installed"
-#systemctl start name.service 
+#systemctl start name.service

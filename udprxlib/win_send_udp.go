@@ -43,7 +43,7 @@ func SendUDP(srcipstr string, destipstr string, srcprt uint, destprt uint, data 
 		return err
 	}
 	//dial and connect to localhost
-	ServerAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("127.0.0.1:%d", destprt))
+	ServerAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", destipstr, destprt))
 	if err != nil {
 		log.Error("Error resolving localhost - this should never happen")
 		return err
