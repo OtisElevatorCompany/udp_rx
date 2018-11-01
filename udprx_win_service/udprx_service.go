@@ -31,7 +31,7 @@ import (
 	"golang.org/x/sys/windows/svc"
 )
 
-const Version = "A1731825AAA"
+const Version = "A1831825AAA"
 
 func usage(errmsg string) {
 	fmt.Fprintf(os.Stderr,
