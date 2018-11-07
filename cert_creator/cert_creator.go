@@ -72,7 +72,7 @@ func CreateCert(outpath, keypath, caKeyPath, caCertPath, keypassword string) err
 			StreetAddress: []string{"5 Farm Springs"},
 			PostalCode:    []string{"06032"},
 		},
-		NotBefore:             time.Now(),
+		NotBefore:             time.Now().AddDate(0, 0, -1),
 		NotAfter:              time.Now().AddDate(100, 0, 0),
 		IsCA:                  true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},

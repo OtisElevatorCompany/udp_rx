@@ -105,7 +105,7 @@ func generateDeviceKeyPair(dkr deviceKeyRequest) (deviceKeyResponse, error) {
 			StreetAddress: []string{"5 Farm Springs"},
 			PostalCode:    []string{"06032"},
 		},
-		NotBefore:             dkr.StartTime,
+		NotBefore:             dkr.StartTime.AddDate(0, 0, -1),
 		NotAfter:              dkr.StartTime.AddDate(100, 0, 0),
 		IsCA:                  true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},

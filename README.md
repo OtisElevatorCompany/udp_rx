@@ -17,9 +17,9 @@ You have a UDP packet that you want to be sent to `192.168.1.250` with a destina
 
 ```[10,9,8,7,6,5,4,3,2,1]```
 
-Take that packet and prepent the ip address and port to the data field (`4444` == `[11,92]` (big endian)).
+Take that packet and prepent the ip address and port to the data field (`4444` == `[11,5C]` (big endian)).
 
-```[192,168,1,250,11,92,10,9,8,7,6,5,4,3,2,1]```
+```[192,168,1,250,11,5C,10,9,8,7,6,5,4,3,2,1]```
 
 Send that packet to `localhost:55555` (or whatever port udp_rx is configured to listen to)
 
@@ -33,7 +33,7 @@ udp_rx will recieve the packet and craft a udp packet from `sender:src_port` to 
 ### Windows
 udp_rx will recieve the packet and create a udp packet from `localhost:random_port` to `desination:dest_port`. It will prepend the sender's IP address and src_port to the data. So if the sender was `192.168.1.100`, from port `4445` the packet data field would be:
 
-```[192,168,1,100,11,93,10,9,8,7,6,5,4,3,2,1]```
+```[192,168,1,100,11,5D,10,9,8,7,6,5,4,3,2,1]```
 
 ## License
 This program is released under the MIT License. For details, please see the LICENSE file
