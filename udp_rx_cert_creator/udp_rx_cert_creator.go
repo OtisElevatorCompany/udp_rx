@@ -30,7 +30,7 @@ func main() {
 	deviceKeyFlag := flag.String("devkey", "udp_rx.key", "The output path for the udp_rx device key")
 	deviceCertFlag := flag.String("devcert", "udp_rx.crt", "The output path for the udp_rx device cert")
 	//specify ip to build for
-	ipFlag := flag.String("ips", "", "A comma separated string of IP addresses. If not set, it will use this systems IP addresses")
+	ipFlag := flag.String("ips", "", "A comma separated string of IP addresses. If not set, it will use this system's IP addresses")
 	// parse args
 	flag.Parse()
 	// create the certs

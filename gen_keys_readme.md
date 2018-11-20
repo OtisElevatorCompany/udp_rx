@@ -29,7 +29,7 @@ This generates `udp_rx.key` and `udp_rx.crt` which is the device keypair for use
     The output path for the udp_rx device key (default "udp_rx.key")
 -ips string
     A comma separated string of IP addresses. If not set, it will use this
-    systems IP addresses
+    system's IP addresses
 -keypass string
     password for private key if encrypted
 -keypath string
