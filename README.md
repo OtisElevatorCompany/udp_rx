@@ -1,7 +1,7 @@
 # udp_rx
 This is still currently pre-1.0 software, breaking changes are likely to be made until a 1.0 release
 
-udp_rx is a program created to tunnel udp traffic through a TLS 1.3 connection. It is useful for securing old protocols that cannot be updated to tcp or for some reason, can't use dtls. If you use this tool you _should_ firewall off the udp ports used by the protocol to prevent redirection by a malicious third party and _should_ firewall off the UDP port used by udp_rx.
+udp_rx is a program created to tunnel udp traffic through a TLS 1.3 connection. It is useful for securing old protocols that cannot be updated to tcp or for some reason, can't use dtls. If you use this tool you **should** firewall off the udp ports used by the protocol to prevent redirection by a malicious third party and **should** firewall off the UDP port used by udp_rx.
 
 Please see gen_keys_readme.txt for creating/using SSL keys with udp_rx
 

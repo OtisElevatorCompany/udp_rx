@@ -24,13 +24,14 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows/svc"
 )
 
+// Version is the current version of the application
 const Version = "A1831825AAA"
 
 func usage(errmsg string) {
@@ -45,7 +46,8 @@ func usage(errmsg string) {
 
 func main() {
 	const svcName = "udp_rx"
-
+	log.SetFormatter(&log.JSONFormatter{})
+	log.SetLevel(log.InfoLevel)
 	isIntSess, err := svc.IsAnInteractiveSession()
 	if err != nil {
 		log.Fatalf("failed to determine if we are running in an interactive session: %v", err)
@@ -62,6 +64,7 @@ func main() {
 	cmd := strings.ToLower(os.Args[1])
 	switch cmd {
 	case "debug":
+		log.SetLevel(log.DebugLevel)
 		runService(svcName, true)
 		return
 	case "install":

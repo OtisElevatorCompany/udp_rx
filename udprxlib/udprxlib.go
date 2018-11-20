@@ -388,6 +388,12 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 			mlength = mlength + 8
 		}
 		//craft and send a UDP packet
+		log.WithFields(log.Fields{
+			"rx ip":    rxip,
+			"local ip": lcip,
+			"srcport":  srcport,
+			"destport": destport,
+		}).Debug("Sending UDP packet")
 		err = sender(rxip, lcip, srcport, destport, buf[:mlength-2], counter)
 		if err != nil {
 			log.Error(err)
@@ -463,7 +469,7 @@ func forwardPacket(conf *tls.Config, addr string, data []byte, srcprt int, remot
 				return err
 			}
 		}
-		log.Debug("sent a packet")
+		log.Debug("sent a packet to ", addr)
 		return nil
 	}
 }
