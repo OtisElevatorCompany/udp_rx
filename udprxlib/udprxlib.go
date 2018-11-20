@@ -139,9 +139,9 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 	defer ServerConn.Close()
 
 	//loop variables
-	buf := make([]byte, 1024)
 	log.Info("Ready to accept connections...")
 	for {
+		buf := make([]byte, 1024)
 		n, src, err := ServerConn.ReadFromUDP(buf)
 		if err != nil {
 			log.WithFields(
@@ -222,7 +222,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 			//otherwise forward to dest
 			go forwardPacketFunc(clientConf, destAddr, buf[4:n], src.Port, RemoteTLSPort)
 		}
-
+		buf = nil
 	}
 }
 
