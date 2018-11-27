@@ -77,7 +77,14 @@ func TestGetConn(t *testing.T) {
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{cer},
 	}
-	conn, err := getConn("127.0.0.1", clientConf, ":55554")
+	header := UDPRxHeader{
+		MajorVersion: 1,
+		MinorVersion: 0,
+		PatchVersion: 0,
+		PortNumber:   50300,
+		DestIPAddr:   net.IPv4(127, 0, 0, 1),
+	}
+	conn, err := getConn(header, clientConf, ":55554")
 	if err != nil {
 		t.Error("getConn returned an error")
 	}
@@ -115,11 +122,19 @@ func handleIncomingTLS(ln net.Listener) {
 
 //TestConnAddRemove checks the addConn and removeConn methods
 func TestConnAddRemove(t *testing.T) {
-	addConn("192.168.1.100", nil)
-	addConn("192.168.1.100", nil)
-	addConn("192.168.1.101", nil)
-	removeConn("192.168.1.100")
-	removeConn("abc")
+	addConn("192.168.1.100", "192.168.1.102", nil)
+	addConn("192.168.1.100", "192.168.1.102", nil)
+	addConn("192.168.1.101", "192.168.1.102", nil)
+	header := UDPRxHeader{
+		MajorVersion: 1,
+		MinorVersion: 0,
+		PatchVersion: 0,
+		PortNumber:   50300,
+		DestIPAddr:   net.IPv4(192, 168, 1, 100),
+		SourceIPAddr: net.IPv4(192, 168, 1, 102),
+	}
+	removeConn(header)
+	removeConn(UDPRxHeader{})
 }
 
 //TestHandleConn tests the handleConn method
@@ -196,7 +211,16 @@ func TestForwardPacket(t *testing.T) {
 	for i := 0; i < 11; i++ {
 		buf[2+i] = (byte)(10 - i)
 	}
-	err = forwardPacket(clientConf, "127.0.0.1", buf, 55554, ":55553")
+	//make a header
+	header := UDPRxHeader{
+		MajorVersion: 1,
+		MinorVersion: 0,
+		PatchVersion: 0,
+		PortNumber:   50300,
+		DestIPAddr:   net.IPv4(127, 0, 0, 1),
+	}
+	//send it
+	err = forwardPacket(clientConf, header, buf, 55554, ":55553")
 	if err != nil {
 		t.Error("Error forwarding packets")
 	}
@@ -344,8 +368,8 @@ func TestUDPListener(t *testing.T) {
 		t.Error("Should have gotten an error")
 	}
 }
-func mockForwardPacket(conf *tls.Config, addr string, data []byte, srcprt int, remoteTLSPort string) error {
-	if addr != "192.168.1.50" {
+func mockForwardPacket(conf *tls.Config, header UDPRxHeader, data []byte, srcprt int, remoteTLSPort string) error {
+	if header.DestIPAddr.String() != "192.168.1.50" {
 		testUDPListenerT.Fatal("Bad ip input to forward packet")
 	}
 	if data[0] != 11 {
@@ -361,4 +385,87 @@ func mockForwardPacket(conf *tls.Config, addr string, data []byte, srcprt int, r
 		testUDPListenerT.Fatal("Bad data byte 1")
 	}
 	return nil
+}
+
+func TestParseHeader4NoSrc(t *testing.T) {
+	buf := make([]byte, 1024)
+	//start
+	buf[0] = 0x75
+	//header version
+	buf[1] = 0x01
+	buf[2] = 0x02
+	buf[3] = 0x03
+	//port = 50300 in 2 bytes, big endian
+	buf[4] = 0xC4
+	buf[5] = 0x7C
+	//ipv4
+	buf[6] = 0x04
+	//to 192.168.1.100
+	buf[7] = 192
+	buf[8] = 168
+	buf[9] = 1
+	buf[10] = 100
+	//end
+	buf[11] = 0x80
+	header, err := parseHeader(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+	if header.MajorVersion != 1 {
+		t.Error("wrong major version")
+	}
+	if header.MinorVersion != 2 {
+		t.Error("wrong minor version")
+	}
+	if header.PatchVersion != 3 {
+		t.Error("wrong patch version")
+	}
+	if header.PortNumber != 50300 {
+		t.Error("Wrong Port Number")
+	}
+	if header.DestIPAddr.String() != "192.168.1.100" {
+		t.Errorf("Wrong Dest IP. Got %s", header.DestIPAddr.String())
+	}
+}
+
+//2600:8805:cc00:cc:ed0e:1b36:d342:474e
+func TestParseHeader6NoSrc(t *testing.T) {
+	buf := make([]byte, 1024)
+	//start
+	buf[0] = 0x75
+	//header version
+	buf[1] = 0x01
+	buf[2] = 0x02
+	buf[3] = 0x03
+	//port = 50300 in 2 bytes, big endian
+	buf[4] = 0xC4
+	buf[5] = 0x7C
+	//ipv6
+	buf[6] = 0x06
+	//to 2600:8805:cc00:cc:ed0e:1b36:d342:474e
+	destip := net.ParseIP("2600:8805:cc00:cc:ed0e:1b36:d342:474e")
+	for i := 0; i < 16; i++ {
+		buf[7+i] = destip[i]
+	}
+	//end
+	buf[23] = 0x80
+	header, err := parseHeader(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+	if header.MajorVersion != 1 {
+		t.Error("wrong major version")
+	}
+	if header.MinorVersion != 2 {
+		t.Error("wrong minor version")
+	}
+	if header.PatchVersion != 3 {
+		t.Error("wrong patch version")
+	}
+	if header.PortNumber != 50300 {
+		t.Error("Wrong Port Number")
+	}
+	if header.DestIPAddr.String() != "2600:8805:cc00:cc:ed0e:1b36:d342:474e" {
+		t.Errorf("Wrong Dest IP. Got %s", header.DestIPAddr.String())
+	}
 }

@@ -24,6 +24,7 @@ import (
 	"bufio"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -47,10 +48,12 @@ var newdatalen = 4
 var ForwardMap map[string]int
 
 //this mutex protects the TLS connection cache
+//NOTE: the key here is a string in the form of "dest|src"
 var mutexMap = make(map[string]*sync.Mutex)
 var mutexWriterMutex = &sync.Mutex{}
 
 //connMap is a hashmap of strings (ip addresses in string form) to tls connection pointers
+//NOTE: the key here is a string in the form of "dest|src"
 var connMap = make(map[string]*tls.Conn)
 var lastConnFail = make(map[string]time.Time)
 
@@ -100,8 +103,9 @@ func TCPListener(listenAddrFlag *string, serverConf *tls.Config, done chan error
 		}
 		//put the connection into the mapping
 		remoteAddr := strings.Split(conn.RemoteAddr().String(), ":")[0]
+		localAddr := strings.Split(conn.LocalAddr().String(), ":")[0]
 		if tlsconn, ok := conn.(*tls.Conn); ok {
-			addConn(remoteAddr, tlsconn)
+			addConn(remoteAddr, localAddr, tlsconn)
 		}
 
 		//go handle a connection in a gothread
@@ -151,12 +155,13 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 			done <- err
 			return
 		}
+		header, err := parseHeader(&buf)
 		//parse dest addr and dest port
-		destAddr := fmt.Sprintf("%d.%d.%d.%d", buf[0], buf[1], buf[2], buf[3])
-		farport := (int(buf[4]) << 8) + int(buf[5])
+		// destAddr := fmt.Sprintf("%d.%d.%d.%d", buf[0], buf[1], buf[2], buf[3])
+		// farport := (int(buf[4]) << 8) + int(buf[5])
 		//debug logging
 		if ForwardMap != nil {
-			fullAddr := fmt.Sprintf("%s:%d", destAddr, farport)
+			fullAddr := fmt.Sprintf("%s:%d", header.DestIPAddr.String(), header.PortNumber)
 			//if nothing in forward map
 			if ForwardMap[fullAddr] == 0 {
 				ForwardMap[fullAddr] = 1
@@ -170,11 +175,11 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 		}
 		//end debug logging
 		//if farport is reserved, don't continue processing, get the next packet
-		if farport == 0 || farport == 1023 {
+		if header.PortNumber == 0 || header.PortNumber == 1023 {
 			log.WithFields(
 				log.Fields{
 					"error":     err,
-					"dest port": farport,
+					"dest port": header.PortNumber,
 				}).Error("Got a bad dest port")
 			continue
 		}
@@ -196,22 +201,18 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 				}).Error("Error getting local ips for localhost checking")
 			continue
 		}
-		//build an ipv4 address
-		destip := net.IPv4(buf[0], buf[1], buf[2], buf[3]).String()
+		//build an ip string from the dest IP to check against localhost ips
 		for _, ip := range ips {
 			ipstring := ip.String()
 			_ = ipstring
-			if ip.String() == destip {
+			if ip.String() == header.DestIPAddr.String() {
 				isLocalHost = true
 				break
 			}
 		}
-		// if !isLocalHost && destip == net.IPv4(127, 0, 0, 1).String() {
-		// 	isLocalHost = true
-		// }
 		if isLocalHost {
 			//skip forward packet and go straight to
-			err = SendUDP("127.0.0.1", destip, uint(src.Port), uint(farport), buf[6:], 0)
+			err = SendUDP(src.IP.String(), header.DestIPAddr.String(), uint(src.Port), uint(header.PortNumber), buf[:n], 0)
 			if err != nil {
 				log.WithFields(
 					log.Fields{
@@ -220,7 +221,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 			}
 		} else {
 			//otherwise forward to dest
-			go forwardPacketFunc(clientConf, destAddr, buf[4:n], src.Port, RemoteTLSPort)
+			go forwardPacketFunc(clientConf, header, buf[:n], src.Port, RemoteTLSPort)
 		}
 		buf = nil
 	}
@@ -286,15 +287,20 @@ func StopThreads() {
 	connMap = make(map[string]*tls.Conn)
 }
 
-func addConn(addr string, conn *tls.Conn) {
+func addConn(remoteAddr, localAddr string, conn *tls.Conn) {
 	//create a new mutex for this address if one doesn't exist
-	checkMutexMapMutex(addr)
-	mutexMap[addr].Lock()
-	defer mutexMap[addr].Unlock()
-	//check if there's already a connection, if there is, do nothing, it should be OK
-	existingConn := connMap[addr]
-	if existingConn == nil {
-		connMap[addr] = conn
+	mapKeyComplete := fmt.Sprintf("%s|%s", remoteAddr, localAddr)
+	mapKeyNoSrc := fmt.Sprintf("%s|", remoteAddr)
+	keys := [2]string{mapKeyComplete, mapKeyNoSrc}
+	for _, key := range keys {
+		checkMutexMapMutex(key)
+		mutexMap[key].Lock()
+		defer mutexMap[key].Unlock()
+		existingConn := connMap[key]
+		//check if there's already a connection, if there is, do nothing, it should be OK
+		if existingConn == nil {
+			connMap[key] = conn
+		}
 	}
 }
 
@@ -376,8 +382,8 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 		//get the ip and port the sender connected to (might be multiple)
 		localipandport := conn.LocalAddr().String()
 		//split out just the IPs into a string
-		rxip := strings.Split(rxipandport, ":")[0]
-		lcip := strings.Split(localipandport, ":")[0]
+		remoteIP := strings.Split(rxipandport, ":")[0]
+		localIP := strings.Split(localipandport, ":")[0]
 		//_ = lcip
 		//if netprofiling
 		if netProfiling {
@@ -389,12 +395,12 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 		}
 		//craft and send a UDP packet
 		log.WithFields(log.Fields{
-			"rx ip":    rxip,
-			"local ip": lcip,
-			"srcport":  srcport,
-			"destport": destport,
+			"remote_ip": remoteIP,
+			"local_ip":  localIP,
+			"srcport":   srcport,
+			"destport":  destport,
 		}).Debug("Sending UDP packet")
-		err = sender(rxip, lcip, srcport, destport, buf[:mlength-2], counter)
+		err = sender(remoteIP, localIP, srcport, destport, buf[:mlength-2], counter)
 		if err != nil {
 			log.Error(err)
 			return
@@ -411,7 +417,7 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 		//debug logging code
 		if ForwardMap != nil {
 			//this string is in form [fromIpAddress]-[destination port]
-			debugmapstring := fmt.Sprintf("%s-%d", rxip, destport)
+			debugmapstring := fmt.Sprintf("%s-%d", remoteIP, destport)
 			if ForwardMap[debugmapstring] == 0 {
 				ForwardMap[debugmapstring] = 1
 				log.Debug("Forwarding first message to ", debugmapstring)
@@ -426,7 +432,8 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 	}
 }
 
-func forwardPacket(conf *tls.Config, addr string, data []byte, srcprt int, remoteTLSPort string) error {
+//func forwardPacket(conf *tls.Config, addr string, data []byte, srcprt int, remoteTLSPort string) error {
+func forwardPacket(conf *tls.Config, header UDPRxHeader, data []byte, srcprt int, remoteTLSPort string) error {
 	//prepend the number of bytes into
 	lenbytes := intToBytes(len(data))
 	if netProfiling {
@@ -449,7 +456,7 @@ func forwardPacket(conf *tls.Config, addr string, data []byte, srcprt int, remot
 	try := 0
 	for {
 		//get a cached conn or create a new one
-		conn, err := getConn(addr, conf, remoteTLSPort)
+		conn, err := getConn(header, conf, remoteTLSPort)
 		if err != nil {
 			_, ok := err.(*connTimeoutError)
 			if !ok {
@@ -462,39 +469,65 @@ func forwardPacket(conf *tls.Config, addr string, data []byte, srcprt int, remot
 			log.Error(n, err)
 			if try < 3 {
 				log.Debug("removing old connmap")
-				removeConn(addr)
+				removeConn(header)
 				try = try + 1
 				continue
 			} else {
 				return err
 			}
 		}
-		log.Debug("sent a packet to ", addr)
+		srcIPString := header.SourceIPAddr.String()
+		if srcIPString == "<nil>" {
+			srcIPString = ""
+		}
+		log.WithFields(log.Fields{
+			"sourceIP": srcIPString,
+			"destIP":   header.DestIPAddr.String(),
+		}).Debug("sent a packet")
+		//log.Debug("sent a packet to %s|%s", header.DestIPAddr.String(), header.SourceIPAddr.String())
 		return nil
 	}
 }
 
-func getConn(addr string, conf *tls.Config, remotePort string) (*tls.Conn, error) {
+func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn, error) {
 	//create a new mutex for this address if one doesn't exist
-	checkMutexMapMutex(addr)
+	var mapKey string
+	if len(header.SourceIPAddr) > 0 {
+		mapKey = fmt.Sprintf("%s|%s", header.DestIPAddr.String(), header.SourceIPAddr.String())
+	} else {
+		mapKey = fmt.Sprintf("%s|", header.DestIPAddr.String())
+	}
+	checkMutexMapMutex(mapKey)
 	//lock and defer closing
-	mutexMap[addr].Lock()
-	defer mutexMap[addr].Unlock()
+	mutexMap[mapKey].Lock()
+	defer mutexMap[mapKey].Unlock()
 	//also check
-	conn := connMap[addr]
+	conn := connMap[mapKey]
 	if conn == nil {
-		if time.Since(lastConnFail[addr]).Seconds() < ConnTimeoutVal {
+		if time.Since(lastConnFail[mapKey]).Seconds() < ConnTimeoutVal {
 			return nil, &connTimeoutError{"Connection hasn't timed out"}
 		}
-		log.Info("creating new cached connection for: ", addr)
-		newconn, err := tls.Dial("tcp", addr+remotePort, conf)
-		if err != nil {
-			log.Error(err)
-			lastConnFail[addr] = time.Now()
-			return nil, err
+		log.Info("creating new cached connection for: ", mapKey)
+		//If there is no source IP, we can do the easy tls.Dial
+		var newconn *tls.Conn
+		var err error
+		if len(header.SourceIPAddr) == 0 {
+			newconn, err = tls.Dial("tcp", header.DestIPAddr.String()+remotePort, conf)
+			if err != nil {
+				log.Error(err)
+				lastConnFail[mapKey] = time.Now()
+				return nil, err
+			}
+			connMap[mapKey] = newconn
+			//start recieving on this new connection too: (tls.Conn implements net.Conn interface)
+
+		} else {
+			dialer := net.Dialer{
+				LocalAddr: &net.TCPAddr{IP: header.SourceIPAddr},
+			}
+			newconn, err = tls.DialWithDialer(&dialer, "tcp", header.DestIPAddr.String()+remotePort, conf)
 		}
-		connMap[addr] = newconn
-		//start recieving on this new connection too: (tls.Conn implements net.Conn interface)
+		//start listening for connections in on this connection
 		go handleConnection(newconn, SendUDP)
 		//debug code
 		if ForwardMap != nil {
@@ -512,9 +545,83 @@ func getConn(addr string, conf *tls.Config, remotePort string) (*tls.Conn, error
 	return conn, nil
 }
 
-func removeConn(addr string) {
-	checkMutexMapMutex(addr)
-	mutexMap[addr].Lock()
-	defer mutexMap[addr].Unlock()
-	delete(connMap, addr)
+func removeConn(header UDPRxHeader) {
+	mapKey := fmt.Sprintf("%s|%s", header.DestIPAddr.String(), header.SourceIPAddr.String())
+	checkMutexMapMutex(mapKey)
+	mutexMap[mapKey].Lock()
+	defer mutexMap[mapKey].Unlock()
+	delete(connMap, mapKey)
+}
+
+// UDPRxHeader represents the udp_rx header on incoming udp_packets
+type UDPRxHeader struct {
+	//header version
+	MajorVersion byte
+	MinorVersion byte
+	PatchVersion byte
+	//Port number and Dest IP address
+	PortNumber int
+	DestIPAddr net.IP
+	//Optional source IP address
+	SourceIPAddr net.IP
+}
+
+// parseHeader returns a UDPRxHeader and removes it from the buffer
+func parseHeader(buf *[]byte) (UDPRxHeader, error) {
+	header := UDPRxHeader{}
+	// version
+	header.MajorVersion = (*buf)[1]
+	header.MinorVersion = (*buf)[2]
+	header.PatchVersion = (*buf)[3]
+	// port
+	header.PortNumber = (int((*buf)[4]) << 8) + int((*buf)[5])
+	// destination ip address
+	nextindex := -1
+	ipversion := int((*buf)[6])
+	if ipversion == 4 {
+		header.DestIPAddr = (*buf)[7:11]
+		nextindex = 11
+	} else if ipversion == 6 {
+		header.DestIPAddr = (*buf)[7:23]
+		nextindex = 23
+	} else {
+		return UDPRxHeader{}, errors.New("unsupported IP version")
+	}
+	// if the next byte after the IP address is 0x80, we're done
+	if (*buf)[nextindex] == 0x80 {
+		*buf = (*buf)[nextindex+1:]
+		if !checkValidIP(header, ipversion) {
+			return UDPRxHeader{}, errors.New("Invalid destination IP")
+		}
+		return header, nil
+	} else if (*buf)[nextindex] == 0x76 {
+		//otherwise, if it's 0x76, set the src IP
+		if ipversion == 4 {
+			header.SourceIPAddr = (*buf)[12:16]
+			*buf = (*buf)[17:]
+			return header, nil
+		}
+		header.SourceIPAddr = (*buf)[24:40]
+		*buf = (*buf)[41:]
+		if !checkValidIP(header, ipversion) {
+			return UDPRxHeader{}, errors.New("Invalid destination IP")
+		}
+		return header, nil
+	}
+	return UDPRxHeader{}, errors.New("Invalid header format")
+}
+
+func checkValidIP(header UDPRxHeader, iptype int) bool {
+	if iptype == 4 {
+		if len(header.SourceIPAddr) > 0 {
+			return header.SourceIPAddr.To4() != nil && header.DestIPAddr.To4() != nil
+		}
+		return header.DestIPAddr.To4() != nil
+	} else if iptype == 6 {
+		if len(header.SourceIPAddr) > 0 {
+			return header.SourceIPAddr.To16() != nil && header.DestIPAddr.To16() != nil
+		}
+		return header.DestIPAddr.To16() != nil
+	}
+	return false
 }
