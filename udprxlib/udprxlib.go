@@ -447,8 +447,12 @@ func forwardPacket(conf *tls.Config, header UDPRxHeader, data []byte, srcprt int
 	//put the srcport
 	newdata[2] = srcbytes[0]
 	newdata[3] = srcbytes[1]
+	//put the dest port
+	portbytes := intToBytes(header.PortNumber)
+	newdata[4] = portbytes[0]
+	newdata[5] = portbytes[1]
 	//copy the data over
-	copy(newdata[4:], data)
+	copy(newdata[6:], data)
 	//if we're net profiling, add the timestamp
 	if netProfiling {
 		copy(newdata[4+len(data):], getTimeBytes())
@@ -545,12 +549,18 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 	return conn, nil
 }
 
+//removeconn will remove all connections to the remote host, regardless of sending IP address
 func removeConn(header UDPRxHeader) {
 	mapKey := fmt.Sprintf("%s|%s", header.DestIPAddr.String(), header.SourceIPAddr.String())
 	checkMutexMapMutex(mapKey)
 	mutexMap[mapKey].Lock()
 	defer mutexMap[mapKey].Unlock()
-	delete(connMap, mapKey)
+	for key := range connMap {
+		if strings.HasPrefix(key, header.DestIPAddr.String()) {
+			delete(connMap, key)
+		}
+	}
+	//delete(connMap, mapKey)
 }
 
 // UDPRxHeader represents the udp_rx header on incoming udp_packets

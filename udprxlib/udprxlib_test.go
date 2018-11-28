@@ -428,7 +428,6 @@ func TestParseHeader4NoSrc(t *testing.T) {
 	}
 }
 
-//2600:8805:cc00:cc:ed0e:1b36:d342:474e
 func TestParseHeader6NoSrc(t *testing.T) {
 	buf := make([]byte, 1024)
 	//start
