@@ -1,7 +1,7 @@
 # udp_rx
 This is still currently pre-1.0 software, breaking changes are likely to be made until a 1.0 release
 
-udp_rx is a program created to tunnel udp traffic through a TLS 1.3 connection. It is useful for securing old protocols that cannot be updated to tcp or for some reason, can't use dtls. If you use this tool you **should** firewall off the udp ports used by the protocol to prevent redirection by a malicious third party and **should** firewall off the UDP port used by udp_rx.
+udp_rx is a program created to tunnel udp traffic through a TLS 1.2+ connection. It is useful for securing old protocols that cannot be updated to tcp or for some reason, can't use dtls. If you use this tool you **should** firewall off the udp ports used by the protocol to prevent redirection by a malicious third party and **should** firewall off the UDP port used by udp_rx.
 
 Please see gen_keys_readme.txt for creating/using SSL keys with udp_rx
 
@@ -15,11 +15,15 @@ Before downloading this software, be aware that the country in which you are loc
 ## How to use it
 You have a UDP packet that you want to be sent to `192.168.1.250` with a destination port of of `4444`. The data field of that packet is 
 
-```[10,9,8,7,6,5,4,3,2,1]```
+`[5,4,3,2,1]`
 
-Take that packet and prepent the ip address and port to the data field (`4444` == `[11,5C]` (big endian)).
+Take that packet and prepend a udp_rx header to it according to the specification in `header_format.md`. In this case the header would look like:
 
-```[192,168,1,250,11,5C,10,9,8,7,6,5,4,3,2,1]```
+`[0x75,0x00,0x01,0x13,0xc4,0x7c,0x04,0xC0,0xa8,0x01,0xFA,0x80]`
+
+and the resulting packet would be:
+
+`[0x75,0x00,0x01,0x13,0x11,0x5c,0x04,0xC0,0xa8,0x01,0xFA,0x80,5,4,3,2,1]`
 
 Send that packet to `localhost:55555` (or whatever port udp_rx is configured to listen to)
 
