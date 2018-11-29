@@ -17,8 +17,9 @@
 '''This script is for testing udp_rx recieve side functionality'''
 
 import socket
+import os
 
-UDP_IP = ""
+UDP_IP = "192.168.56.1"
 UDP_PORT = 50300
 
 sock = socket.socket(socket.AF_INET, # Internet
@@ -31,5 +32,17 @@ while True:
     print("python - awaiting new connection...")
     data, addr = sock.recvfrom(1024) # buffer size is 1024 bytes
     counter += 1
-    print("python - ", counter)
-    #print("received message: {}\tfrom: {}".format(data, addr))172.25.151.17
+    #print("python - ", counter)
+    if os.name == 'nt':
+        ip = data[0:4]
+        port = data[4:6]
+        data = data[6:]
+        ipstring = ''
+        for octet in ip:
+            ipstring = ipstring + str(octet) + "."
+        port = (port[0] << 8) + port[1]
+        print("IP: ", ipstring)
+        print("port: ", port)
+        print("data: ", data)
+    else:
+        print("received message: {}\tfrom: {}".format(data, addr))

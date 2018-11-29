@@ -21,25 +21,23 @@ import socket
 
 HEADER_VERSION = bytes([0x01, 0x00, 0x00])
 
-IP = bytes([192,168,56,101])
-IP_BAD = bytes([172,28,237,2])
+IP = bytes([192,168,56,1])
+IP_FROM = bytes([192,168,56,102])
 
 PORT = struct.pack(">I", 50300)[2:]
 
 DATA = bytes([5,4,3,2,1])
-HEADER_GOOD = bytes([0x75]) + HEADER_VERSION + PORT + bytes([0x04]) + IP + bytes([0x80])
-HEADER_BAD = bytes([0x75]) + HEADER_VERSION + PORT + bytes([0x04]) + IP_BAD + bytes([0x80])
+HEADER_NO_SENDER = bytes([0x75]) + HEADER_VERSION + PORT + bytes([0x04]) + IP + bytes([0x80])
+HEADER_SENDER = bytes([0x75]) + HEADER_VERSION + PORT + bytes([0x04]) + IP + bytes([0x76]) + IP_FROM + bytes([0x80])
 
 
-PACKET_GOOD = HEADER_GOOD + DATA
-PACKET_BAD = HEADER_BAD + DATA
+PACKET_NO_SENDER = HEADER_NO_SENDER + DATA
+PACKET_SENDER = HEADER_SENDER + DATA
 DEST = "127.0.0.1"
 DEST_PORT = 55555
 SOCK = socket.socket(socket.AF_INET, # Internet
                      socket.SOCK_DGRAM) # UDP
-for _ in range(0,100):
-    SOCK.sendto(PACKET_GOOD, (DEST, DEST_PORT))
-for _ in range(0,100):
-    SOCK.sendto(PACKET_BAD, (DEST, DEST_PORT))
-for _ in range(0,100):
-    SOCK.sendto(PACKET_GOOD, (DEST, DEST_PORT))
+for _ in range(0,1):
+    SOCK.sendto(PACKET_NO_SENDER, (DEST, DEST_PORT))
+for _ in range(0,1):
+    SOCK.sendto(PACKET_SENDER, (DEST, DEST_PORT))
