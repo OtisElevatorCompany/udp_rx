@@ -142,7 +142,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 	}
 	defer ServerConn.Close()
 
-	//loop variables
+	// foreach udp packet
 	log.Info("Ready to accept connections...")
 	for {
 		buf := make([]byte, 1024)
@@ -155,10 +155,8 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 			done <- err
 			return
 		}
+		// parse and remove the header from the packet
 		header, err := parseHeader(&buf)
-		//parse dest addr and dest port
-		// destAddr := fmt.Sprintf("%d.%d.%d.%d", buf[0], buf[1], buf[2], buf[3])
-		// farport := (int(buf[4]) << 8) + int(buf[5])
 		//debug logging
 		if ForwardMap != nil {
 			fullAddr := fmt.Sprintf("%s:%d", header.DestIPAddr.String(), header.PortNumber)
@@ -201,7 +199,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 				}).Error("Error getting local ips for localhost checking")
 			continue
 		}
-		//build an ip string from the dest IP to check against localhost ips
+		// build an ip string from the dest IP to check against localhost ips
 		for _, ip := range ips {
 			ipstring := ip.String()
 			_ = ipstring
@@ -211,7 +209,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 			}
 		}
 		if isLocalHost {
-			//skip forward packet and go straight to
+			// skip forward packet and go straight to sending a UDP packet to the local IP
 			err = SendUDP(src.IP.String(), header.DestIPAddr.String(), uint(src.Port), uint(header.PortNumber), buf[:n], 0)
 			if err != nil {
 				log.WithFields(
@@ -223,6 +221,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 			//otherwise forward to dest
 			go forwardPacketFunc(clientConf, header, buf[:n], src.Port, RemoteTLSPort)
 		}
+		// clear the buffer for garbage collection by setting to nil explicitly
 		buf = nil
 	}
 }
@@ -287,6 +286,7 @@ func StopThreads() {
 	connMap = make(map[string]*tls.Conn)
 }
 
+// addConn caches a connection for an incoming TLS connection
 func addConn(remoteAddr, localAddr string, conn *tls.Conn) {
 	//create a new mutex for this address if one doesn't exist
 	mapKeyComplete := fmt.Sprintf("%s|%s", remoteAddr, localAddr)
@@ -304,6 +304,7 @@ func addConn(remoteAddr, localAddr string, conn *tls.Conn) {
 	}
 }
 
+// ensure that there is a connection mutex for this address
 func checkMutexMapMutex(addr string) bool {
 	createdMutex := false
 	mutexWriterMutex.Lock()
@@ -315,6 +316,7 @@ func checkMutexMapMutex(addr string) bool {
 	return createdMutex
 }
 
+// this handles an incoming TLS connection, sending udp packets to a sendUDPFn
 func handleConnection(conn net.Conn, sender sendUDPFn) {
 	defer conn.Close()
 	//create a a reader for the connection
@@ -322,15 +324,16 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 	counter := 0
 	lastLoopEOF := false
 	for {
-		//create buffers
+		// create buffers
 		buf := make([]byte, 1024)
 		lenbytes := make([]byte, 2)
 		srcprtbytes := make([]byte, 2)
 		destportbytes := make([]byte, 2)
 
-		//get the top 2 bytes and put them into lenbytes
-		//if there's a non EOF error, return (kills the connection), otherwise EOF is OK, restart loop
+		// get the top 2 bytes and put them into lenbytes
+		// if there's a non EOF error, return (kills the connection), otherwise EOF is OK, restart loop
 		_, err := io.ReadAtLeast(r, lenbytes, 2)
+		// handle input errors here
 		if err != nil {
 			if err != io.EOF {
 				log.Error(err)
@@ -344,48 +347,47 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 				continue
 			}
 		}
-		//if we didn't hit an EOF, we have a packet, set lastLoopEOF to false
+		// if we didn't hit an EOF, we have a packet, set lastLoopEOF to false
 		lastLoopEOF = false
 		//set message length
 		mlength := (int(lenbytes[0]) << 8) + int(lenbytes[1])
-		//get the 2 srcport bytes from the front and combine them
+		// get the 2 srcport bytes from the front and combine them
 		_, err = io.ReadAtLeast(r, srcprtbytes, 2)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		//check for reserved ports
+		// check for reserved ports
 		srcport := (uint(srcprtbytes[0]) << 8) + uint(srcprtbytes[1])
 		if srcport < 0 || srcport == 0 || srcport == 1023 {
 			return
 		}
-		//get the 2 destport bytes from the front and combine them
+		// get the 2 destport bytes from the front and combine them
 		_, err = io.ReadAtLeast(r, destportbytes, 2)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		//check for reserved ports (again)
+		// check for reserved ports (again)
 		destport := (uint(destportbytes[0]) << 8) + uint(destportbytes[1])
 		if destport < 0 || destport == 0 || destport == 1023 {
 			log.Error("invalid destination port number: ", destport)
 			return
 		}
-		//get the rest of the data. It's mlength-2 because we already got destport
+		// get the rest of the data. It's mlength-2 because we already got destport
 		_, err2 := io.ReadAtLeast(r, buf, mlength-2)
 		if err2 != nil {
 			log.Error(err)
 			return
 		}
-		//get the remote (sender) ip and port
+		// get the remote (sender) ip and port
 		rxipandport := conn.RemoteAddr().String()
-		//get the ip and port the sender connected to (might be multiple)
+		// get the ip and port the sender connected to (might be multiple)
 		localipandport := conn.LocalAddr().String()
 		//split out just the IPs into a string
 		remoteIP := strings.Split(rxipandport, ":")[0]
 		localIP := strings.Split(localipandport, ":")[0]
-		//_ = lcip
-		//if netprofiling
+		// if netprofiling, add the time bytes
 		if netProfiling {
 			for index, element := range getTimeBytes() {
 				buf[mlength-2+index] = element
@@ -393,19 +395,20 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 			}
 			mlength = mlength + 8
 		}
-		//craft and send a UDP packet
+		// craft and send a UDP packet
 		log.WithFields(log.Fields{
 			"remote_ip": remoteIP,
 			"local_ip":  localIP,
 			"srcport":   srcport,
 			"destport":  destport,
 		}).Debug("Sending UDP packet")
+		// sending to local IP:destport, from remoteIP:srcport
 		err = sender(remoteIP, localIP, srcport, destport, buf[:mlength-2], counter)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		//profiling
+		// if we're cpu profiling, keep track of when to stop the profile
 		if cpuProfiling {
 			counter++
 			if counter > maxProfilingPackets {
@@ -414,7 +417,7 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 				cpuProfiling = false
 			}
 		}
-		//debug logging code
+		// debug logging code
 		if ForwardMap != nil {
 			//this string is in form [fromIpAddress]-[destination port]
 			debugmapstring := fmt.Sprintf("%s-%d", remoteIP, destport)
@@ -428,38 +431,38 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 				}
 			}
 		}
-		//counter++
 	}
 }
 
-//func forwardPacket(conf *tls.Config, addr string, data []byte, srcprt int, remoteTLSPort string) error {
+// forwardPacket sends the data from a udp packet received locally and
+// transmits it over TLS to another udprx instance
 func forwardPacket(conf *tls.Config, header UDPRxHeader, data []byte, srcprt int, remoteTLSPort string) error {
-	//prepend the number of bytes into
+	// prepend the number of bytes into
 	lenbytes := intToBytes(len(data))
 	if netProfiling {
 		lenbytes = intToBytes(len(data) + 8)
 	}
 	srcbytes := intToBytes(srcprt)
 	newdata := make([]byte, len(data)+newdatalen)
-	//put the mlength
+	// put the mlength
 	newdata[0] = lenbytes[0]
 	newdata[1] = lenbytes[1]
-	//put the srcport
+	// put the srcport
 	newdata[2] = srcbytes[0]
 	newdata[3] = srcbytes[1]
-	//put the dest port
+	// put the dest port
 	portbytes := intToBytes(header.PortNumber)
 	newdata[4] = portbytes[0]
 	newdata[5] = portbytes[1]
-	//copy the data over
+	// copy the data over
 	copy(newdata[6:], data)
-	//if we're net profiling, add the timestamp
+	// if we're net profiling, add the timestamp
 	if netProfiling {
 		copy(newdata[4+len(data):], getTimeBytes())
 	}
 	try := 0
 	for {
-		//get a cached conn or create a new one
+		// get a cached conn or create a new one
 		conn, err := getConn(header, conf, remoteTLSPort)
 		if err != nil {
 			_, ok := err.(*connTimeoutError)
@@ -468,8 +471,10 @@ func forwardPacket(conf *tls.Config, header UDPRxHeader, data []byte, srcprt int
 			}
 			return err
 		}
+		// write the data to a successful connection
 		n, err := conn.Write(newdata)
 		if err != nil {
+			// if there was an error, try again 3 times, then remove the connection
 			log.Error(n, err)
 			if try < 3 {
 				log.Debug("removing old connmap")
@@ -480,6 +485,7 @@ func forwardPacket(conf *tls.Config, header UDPRxHeader, data []byte, srcprt int
 				return err
 			}
 		}
+		// log that we sent a packet
 		srcIPString := header.SourceIPAddr.String()
 		if srcIPString == "<nil>" {
 			srcIPString = ""
@@ -487,12 +493,13 @@ func forwardPacket(conf *tls.Config, header UDPRxHeader, data []byte, srcprt int
 		log.WithFields(log.Fields{
 			"sourceIP": srcIPString,
 			"destIP":   header.DestIPAddr.String(),
-		}).Debug("sent a packet")
+		}).Debug("sent a TLS packet")
 		//log.Debug("sent a packet to %s|%s", header.DestIPAddr.String(), header.SourceIPAddr.String())
 		return nil
 	}
 }
 
+// gets or creates a new TLS connection to a remote host
 func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn, error) {
 	//create a new mutex for this address if one doesn't exist
 	var mapKey string
@@ -502,12 +509,15 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 		mapKey = fmt.Sprintf("%s|", header.DestIPAddr.String())
 	}
 	checkMutexMapMutex(mapKey)
-	//lock and defer closing
+	// lock and defer closing
 	mutexMap[mapKey].Lock()
 	defer mutexMap[mapKey].Unlock()
-	//also check
+	// also check
 	conn := connMap[mapKey]
+	// if there's no connection, try to create one
 	if conn == nil {
+		// if it's been less than ConnTimeoutVal seconds: don't try and create a new connection
+		// and return an error
 		if time.Since(lastConnFail[mapKey]).Seconds() < ConnTimeoutVal {
 			return nil, &connTimeoutError{"Connection hasn't timed out"}
 		}
@@ -515,6 +525,8 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 		//If there is no source IP, we can do the easy tls.Dial
 		var newconn *tls.Conn
 		var err error
+		// if there's no SourceIPAddr, do the standard tls dial
+		// and cache the connection on success
 		if len(header.SourceIPAddr) == 0 {
 			newconn, err = tls.Dial("tcp", header.DestIPAddr.String()+remotePort, conf)
 			if err != nil {
@@ -523,17 +535,22 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 				return nil, err
 			}
 			connMap[mapKey] = newconn
-			//start recieving on this new connection too: (tls.Conn implements net.Conn interface)
-
 		} else {
+			// if there is a sending IP, use a dialer to force a source IP
 			dialer := net.Dialer{
 				LocalAddr: &net.TCPAddr{IP: header.SourceIPAddr},
 			}
 			newconn, err = tls.DialWithDialer(&dialer, "tcp", header.DestIPAddr.String()+remotePort, conf)
+			if err != nil {
+				log.Error(err)
+				lastConnFail[mapKey] = time.Now()
+				return nil, err
+			}
+			connMap[mapKey] = newconn
 		}
 		//start listening for connections in on this connection
 		go handleConnection(newconn, SendUDP)
-		//debug code
+		// debug logging
 		if ForwardMap != nil {
 			connstate := newconn.ConnectionState()
 			log.WithFields(log.Fields{
@@ -560,7 +577,6 @@ func removeConn(header UDPRxHeader) {
 			delete(connMap, key)
 		}
 	}
-	//delete(connMap, mapKey)
 }
 
 // UDPRxHeader represents the udp_rx header on incoming udp_packets
@@ -621,6 +637,7 @@ func parseHeader(buf *[]byte) (UDPRxHeader, error) {
 	return UDPRxHeader{}, errors.New("Invalid header format")
 }
 
+// attempts to parse an IP address and returns true if it's a valid IP
 func checkValidIP(header UDPRxHeader, iptype int) bool {
 	if iptype == 4 {
 		if len(header.SourceIPAddr) > 0 {

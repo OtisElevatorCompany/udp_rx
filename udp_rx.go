@@ -99,12 +99,6 @@ func main() {
 		log.Warn("Error parsing the config file. Error: ", err.Error())
 		setConfigValues(nil, listenAddrFlag, keyPathFlag, certPathFlag, caCertPathFlag)
 	}
-	// handle differences between command line args and config file
-	//handles windows paths
-	// if isWindows() {
-	// 	*keyPathFlag = strings.Replace(*keyPathFlag, "/", "\\", -1)
-	// 	*certPathFlag = strings.Replace(*certPathFlag, "/", "\\", -1)
-	// }
 
 	configLogger(logFlag)
 	log.Warning("Starting udp_rx version: ", Version)
@@ -147,7 +141,6 @@ func main() {
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{cer},
 	}
-
 	serverConf = &tls.Config{
 		Certificates: []tls.Certificate{cer},
 		MinVersion:   tls.VersionTLS12,
@@ -165,7 +158,6 @@ func main() {
 
 func configLogger(logFlag *int) error {
 	log.SetFormatter(&log.JSONFormatter{})
-	//newLogger()
 	if *logFlag == 0 {
 		log.SetLevel(log.WarnLevel)
 		log.Warn("LogLevel set to warn")
@@ -181,6 +173,7 @@ func configLogger(logFlag *int) error {
 }
 
 func setConfigValues(conf *udprxlib.ConfFile, listAddrArg, keyPathArg, certPathArg, caCertPathArg *string) {
+	// precedence is: command line arg -> config file -> program default
 	// listen addr
 	if *listAddrArg != defaultListenAddr {
 		listenAddr = *listAddrArg
