@@ -32,13 +32,13 @@ import (
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
-//Version is a constant that is this verion of the code, according to OTIS standards
-const Version = "A1931825AAA"
+// Version is a constant that is this verion of the code, according to OTIS standards
+const Version = "A2031825AAA"
 
-//RemoteTLSPort is the port of the remote TLS server (also the port of the local TLS server)
+// RemoteTLSPort is the port of the remote TLS server (also the port of the local TLS server)
 const RemoteTLSPort = ":55554"
 
-//tls config
+// tls config
 var clientConf *tls.Config
 var serverConf *tls.Config
 
@@ -55,11 +55,11 @@ var listenAddr, keyPath, certPath, caCertPath string
 func main() {
 	fmt.Printf("Starting udp_rx at: %s\n", time.Now())
 
-	//modify the defaults if we're on windows
+	// modify the defaults if we're on windows
 	if isWindows() {
 		modifyDefaultsWindows()
 	}
-	//get cand parse command line args
+	// get and parse command line args
 	versionFlag := flag.Bool("version", false, "Print the Version number and exit")
 	logFlag := flag.Int("loglevel", 0, "level of logging. 0 is warn+, 1 is Info+, 2 is debug+")
 	listenAddrFlag := flag.String("bindaddr", defaultListenAddr, "The IP address to bind the listening UDP socket to")
@@ -69,24 +69,24 @@ func main() {
 	lumberjackFlag := flag.Bool("lumberjack", false, "use lumberjack local file logging")
 	// configuration filepath override
 	confFileFlag := flag.String("conf", confFilePath, "Override the default configuration filepath")
-	//certificate flags
+	// certificate flags
 	keyPathFlag := flag.String("keypath", defaultKeyPath, "Override the default key path/name which is ./keys/server.key")
 	certPathFlag := flag.String("certpath", defaultCertPath, "Override the default certificate path/name which is ./server.crt")
 	caCertPathFlag := flag.String("cacert", defaultCACertPath, "Set the Certificate Authority Certificate to add to the trust")
 	flag.Parse()
-	//iniit the logger
+	// init the logger
 	if *lumberjackFlag {
 		fmt.Println("using lumberjack")
 		log.SetOutput(&lumberjack.Logger{
 			Filename:   "udp_rx.log",
 			MaxSize:    500, // megabytes
 			MaxBackups: 3,
-			MaxAge:     28,   //days
+			MaxAge:     28,   // days
 			Compress:   true, // disabled by default
 		})
 	}
 	fmt.Printf("Logger configured at: %s\n", time.Now())
-	//if version flag, print version and exit
+	// if version flag, print version and exit
 	if *versionFlag {
 		fmt.Printf("Version is: %s\n", Version)
 		os.Exit(0)
@@ -103,12 +103,12 @@ func main() {
 	configLogger(logFlag)
 	log.Warning("Starting udp_rx version: ", Version)
 
-	//check if CPU profiling is on
+	// check if CPU profiling is on
 	if *cpuprofileFlag != "" {
 		log.Warning("Turning on cpu profling...")
 		udprxlib.EnableCPUProfiling(*maxProfilingPacketsFlag, cpuprofileFlag)
 	}
-	//set net profiling
+	// set net profiling
 	if *netProfilingFlag {
 		if *maxProfilingPacketsFlag != 1000 {
 			log.Warning("overriding number of profiling packets to ", *maxProfilingPacketsFlag)
@@ -116,7 +116,7 @@ func main() {
 		udprxlib.EnableNetProfiling(*maxProfilingPacketsFlag)
 	}
 
-	//This will block until the year is > 1970
+	// This will block until the year is > 1970
 	log.Debug("Blocking until time > 1970")
 	for {
 		ctime := time.Now()
@@ -127,16 +127,16 @@ func main() {
 	}
 	log.Debug("Time sync done, unblocking")
 
-	//load server cert as tls certs
+	// load server cert as tls certs
 	log.Debug("keypath: ", certPath)
 	log.Debug("certpath: ", keyPath)
 	cer, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	//load the CA into the trusted store and return it for serverconf
+	// load the CA into the trusted store and return it for serverconf
 	rootCAs := udprxlib.ConfigureRootCAs(&caCertPath)
-	//configure ssl
+	// configure ssl
 	clientConf = &tls.Config{
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{cer},
@@ -148,10 +148,10 @@ func main() {
 		ClientCAs:    rootCAs,
 	}
 
-	//start listening on the UDP port in go routine
+	// start listening on the UDP port in go routine
 	udpListenerDone := make(chan error, 1)
 	go udprxlib.UDPListener(&listenAddr, clientConf, udpListenerDone)
-	//start listening on TCP on main thread (blocking main from returning)
+	// start listening on TCP on main thread (blocking main from returning)
 	tcpListenerDone := make(chan error, 1)
 	udprxlib.TCPListener(&listenAddr, serverConf, tcpListenerDone)
 }

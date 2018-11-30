@@ -28,7 +28,7 @@ import (
 var getTime = time.Now().UTC().UnixNano
 
 func intToBytes(input int) []byte {
-	//this must be less than 1024 so we only have a few use cases
+	// this must be less than 1024 so we only have a few use cases
 	output := make([]byte, 2)
 	lower := input & 0xFF
 	output[1] = byte(lower)
@@ -40,7 +40,6 @@ func intToBytes(input int) []byte {
 func getTimeBytes() []byte {
 	barray := make([]byte, 8)
 	time := getTime()
-	//fmt.Printf("time is: %d", time)
 	barray[0] = byte((time >> 56) & 0xFF)
 	barray[1] = byte((time >> 48) & 0xFF)
 	barray[2] = byte((time >> 40) & 0xFF)
@@ -49,11 +48,6 @@ func getTimeBytes() []byte {
 	barray[5] = byte((time >> 16) & 0xFF)
 	barray[6] = byte((time >> 8) & 0xFF)
 	barray[7] = byte(time & 0xFF)
-	// output := ""
-	// for _, element := range barray {
-	// 	output = output + fmt.Sprintf("%d,", element)
-	// }
-	//fmt.Println(output)
 	return barray
 }
 

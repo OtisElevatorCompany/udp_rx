@@ -31,7 +31,7 @@ const defaultListenAddr = ""
 // config values
 var listenAddr, keyPath, certPath, caCertPath string
 
-//tls configs
+// tls configs
 var clientConf *tls.Config
 var serverConf *tls.Config
 
@@ -86,11 +86,11 @@ loop:
 			case svc.Pause:
 				udprxlib.StopThreads()
 				changes <- svc.Status{State: svc.Paused, Accepts: cmdsAccepted}
-				//tick = slowtick
+				// tick = slowtick
 			case svc.Continue:
 				udpListenerChan, tcpListenerChan = startNetListeners()
 				changes <- svc.Status{State: svc.Running, Accepts: cmdsAccepted}
-				//tick = fasttick
+				// tick = fasttick
 			default:
 				elog.Error(unexpectedControlRequest, fmt.Sprintf("unexpected control request #%d", c))
 			}
@@ -123,7 +123,7 @@ func runService(name string, isDebug bool) {
 	conf, err := udprxlib.ParseConfig(confFilePath)
 	setConfigValues(conf)
 	// load keys
-	//load server cert as tls certs
+	// load server cert as tls certs
 	cer, err := tls.LoadX509KeyPair(certPath, keyPath)
 	if err != nil {
 		elog.Error(deviceKeyCertLoading, "Error loading device keys/certs")

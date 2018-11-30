@@ -24,10 +24,10 @@ import (
 	"net"
 )
 
-//declare a type for the forwardPacketFn
+// declare a type for the forwardPacketFn
 type sendUDPFn func(srcipstr string, destipstr string, srcprt uint, destprt uint, data []byte, counter int) error
 
-//Iphdr is the IP header struct
+// Iphdr is the IP header struct
 type Iphdr struct {
 	vhl   uint8
 	tos   uint8
@@ -41,7 +41,7 @@ type Iphdr struct {
 	dst   [4]byte
 }
 
-//Udphdr is the UDP header struct
+// Udphdr is the UDP header struct
 type Udphdr struct {
 	src  uint16
 	dst  uint16
@@ -58,7 +58,7 @@ type pseudohdr struct {
 	plen    uint16
 }
 
-//the actual IP checksum function
+// the actual IP checksum function
 // func checksum(buf []byte) uint16 {
 // 	sum := uint32(0)
 
@@ -85,7 +85,7 @@ type pseudohdr struct {
 // 	return csum
 // }
 
-//Checksum - sets checksum for an IP header
+// Checksum - sets checksum for an IP header
 func (h *Iphdr) Checksum() {
 	h.csum = 0
 	// var b bytes.Buffer
@@ -93,7 +93,7 @@ func (h *Iphdr) Checksum() {
 	// h.csum = checksum(b.Bytes())
 }
 
-//Checksum - sets checksum for an UDP header
+// Checksum - sets checksum for an UDP header
 func (u *Udphdr) Checksum(ip *Iphdr, payload []byte) {
 	u.csum = 0
 	// phdr := pseudohdr{
@@ -110,7 +110,7 @@ func (u *Udphdr) Checksum(ip *Iphdr, payload []byte) {
 	// u.csum = checksum(b.Bytes())
 }
 
-//ParseIps parses ip address string and returns them as net objects
+// ParseIps parses ip address string and returns them as net objects
 func ParseIps(srcipstr string, destipstr string) (net.IP, net.IP, error) {
 	srcip := net.ParseIP(srcipstr)
 	if srcip == nil {

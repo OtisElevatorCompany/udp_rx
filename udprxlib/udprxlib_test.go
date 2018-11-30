@@ -32,7 +32,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//var cakeypath, certpath, keypath string
+// var cakeypath, certpath, keypath string
 var cacertpath = "../keys/ca.crt"
 var keypath = "../keys/server.key"
 var certpath = "../keys/server.crt"
@@ -40,13 +40,13 @@ var certpath = "../keys/server.crt"
 func modifyKeyPathsWindows() {
 	if isWindows() {
 		cacertpath = strings.Replace(cacertpath, "/", "\\", -1)
-		//cakeypath = strings.Replace(cakeypath, "/", "\\", -1)
+		// cakeypath = strings.Replace(cakeypath, "/", "\\", -1)
 		keypath = strings.Replace(keypath, "/", "\\", -1)
 		certpath = strings.Replace(certpath, "/", "\\", -1)
 	}
 }
 
-//TestCheckMutexMap checks the checkMutexMapMutex method
+// TestCheckMutexMap checks the checkMutexMapMutex method
 func TestCheckMutexMap(t *testing.T) {
 	created := checkMutexMapMutex("192.168.1.100")
 	if !created {
@@ -58,22 +58,22 @@ func TestCheckMutexMap(t *testing.T) {
 	}
 }
 
-//TestGetConn checks the getConn method
+// TestGetConn checks the getConn method
 func TestGetConn(t *testing.T) {
-	//setup certs
+	// setup certs
 	modifyKeyPathsWindows()
 	rootCAs := ConfigureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	//create a tls socket on localhost:
+	// create a tls socket on localhost:
 	ln := setupTLS(rootCAs)
 	go handleIncomingTLS(ln)
-	//end setup, start test
+	// end setup, start test
 
 	clientConf := &tls.Config{
-		//InsecureSkipVerify: true,
+		// InsecureSkipVerify: true,
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{cer},
 	}
@@ -113,14 +113,14 @@ func handleIncomingTLS(ln net.Listener) {
 		conn, _ := ln.Accept()
 		defer conn.Close()
 		r := bufio.NewReader(conn)
-		//buf := make([]byte, 1024)
+		// buf := make([]byte, 1024)
 		r.ReadLine()
-		//io.ReadAtLeast(r, buf, 2)
+		// io.ReadAtLeast(r, buf, 2)
 		break
 	}
 }
 
-//TestConnAddRemove checks the addConn and removeConn methods
+// TestConnAddRemove checks the addConn and removeConn methods
 func TestConnAddRemove(t *testing.T) {
 	addConn("192.168.1.100", "192.168.1.102", nil)
 	addConn("192.168.1.100", "192.168.1.102", nil)
@@ -137,9 +137,9 @@ func TestConnAddRemove(t *testing.T) {
 	removeConn(UDPRxHeader{})
 }
 
-//TestHandleConn tests the handleConn method
+// TestHandleConn tests the handleConn method
 func TestHandleConn(t *testing.T) {
-	//create a server to handle incoming connections
+	// create a server to handle incoming connections
 	ln := buildListener()
 	go tcpServer(ln)
 	conn, _ := net.Dial("tcp", "127.0.0.1:8081")
@@ -168,13 +168,13 @@ func buildListener() net.Listener {
 func tcpServer(ln net.Listener) {
 	conn, _ := ln.Accept()
 	barray := make([]byte, 1024)
-	//len
+	// len
 	barray[0] = 0
 	barray[1] = 13
-	//sourceport
+	// sourceport
 	barray[2] = 0x11
 	barray[3] = 0x93
-	//destport
+	// destport
 	barray[4] = 0x11
 	barray[5] = 0x92
 	for i := 0; i < 11; i++ {
@@ -184,34 +184,34 @@ func tcpServer(ln net.Listener) {
 	conn.Close()
 }
 
-//TestForwardPacket tests the forwardPacket method
+// TestForwardPacket tests the forwardPacket method
 func TestForwardPacket(t *testing.T) {
-	//setup certs
+	// setup certs
 	modifyKeyPathsWindows()
 	rootCAs := ConfigureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	//setup client config
+	// setup client config
 	clientConf := &tls.Config{
-		//InsecureSkipVerify: true,
+		// InsecureSkipVerify: true,
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{cer},
 	}
 	readyTLS := make(chan bool)
 	go listenTLS(readyTLS)
-	//block until readyTLS
+	// block until readyTLS
 	tlsReady := <-readyTLS
 	log.Infof("tlsReady: %t", tlsReady)
-	//time.Sleep(5 * time.Second)
+	// time.Sleep(5 * time.Second)
 	buf := make([]byte, 13)
 	buf[0] = 0x11
 	buf[1] = 0x92
 	for i := 0; i < 11; i++ {
 		buf[2+i] = (byte)(10 - i)
 	}
-	//make a header
+	// make a header
 	header := UDPRxHeader{
 		MajorVersion: 1,
 		MinorVersion: 0,
@@ -219,14 +219,14 @@ func TestForwardPacket(t *testing.T) {
 		PortNumber:   50300,
 		DestIPAddr:   net.IPv4(127, 0, 0, 1),
 	}
-	//send it
+	// send it
 	err = forwardPacket(clientConf, header, buf, 55554, ":55553")
 	if err != nil {
 		t.Error("Error forwarding packets")
 	}
 }
 func listenTLS(readyTLS chan bool) {
-	//setup certs
+	// setup certs
 	modifyKeyPathsWindows()
 	rootCAs := ConfigureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
@@ -245,25 +245,25 @@ func listenTLS(readyTLS chan bool) {
 		conn, _ := lan.Accept()
 		defer conn.Close()
 		r := bufio.NewReader(conn)
-		//check length bytes
+		// check length bytes
 		lenbuf := make([]byte, 2)
 		io.ReadAtLeast(r, lenbuf, 2)
 		if lenbuf[0] != 0 || lenbuf[1] != 13 {
 			panic("length wrong")
 		}
-		//check srcport bytes
+		// check srcport bytes
 		srcprtbuf := make([]byte, 2)
 		io.ReadAtLeast(r, srcprtbuf, 2)
 		if srcprtbuf[0] != 0xD9 || srcprtbuf[1] != 0x02 {
 			panic("srcprt bytes wrong")
 		}
-		//check destport
+		// check destport
 		destprtbuf := make([]byte, 2)
 		io.ReadAtLeast(r, destprtbuf, 2)
 		if destprtbuf[0] != 0x11 || destprtbuf[1] != 0x92 {
 			panic("destprt bytes wrong")
 		}
-		//finally, check data
+		// finally, check data
 		databuf := make([]byte, 11)
 		io.ReadAtLeast(r, databuf, 11)
 		for i := 0; i < 11; i++ {
@@ -293,13 +293,13 @@ func TestTCPListener(t *testing.T) {
 	doneChan := make(chan error)
 	// override handleConnection
 	handleConnectionFunc = mockHandleConnection
-	//start the listener and send a message
+	// start the listener and send a message
 	go TCPListener(&listenAddrSting, serverConf, doneChan)
 	time.Sleep(time.Second * 3)
 	sendTLSMessage(t, cer, rootCAs)
-	//close the connection
+	// close the connection
 	TCPSocketListener.Close()
-	//get the done channel
+	// get the done channel
 	err = <-doneChan
 	if err == nil {
 		t.Error("Should have gotten an error")
@@ -307,7 +307,7 @@ func TestTCPListener(t *testing.T) {
 }
 func sendTLSMessage(t *testing.T, cer tls.Certificate, rootCAs *x509.CertPool) {
 	clientConf := &tls.Config{
-		//InsecureSkipVerify: true,
+		// InsecureSkipVerify: true,
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{cer},
 	}
@@ -319,7 +319,7 @@ func sendTLSMessage(t *testing.T, cer tls.Certificate, rootCAs *x509.CertPool) {
 	conn.Write([]byte{1, 2, 3})
 }
 func mockHandleConnection(conn net.Conn, sender sendUDPFn) {
-	//conn.Close()
+	// conn.Close()
 	b := make([]byte, 1024)
 	conn.Read(b)
 	return
@@ -337,16 +337,16 @@ func TestUDPListener(t *testing.T) {
 		log.Fatal(err)
 	}
 	clientConf := &tls.Config{
-		//InsecureSkipVerify: true,
+		// InsecureSkipVerify: true,
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{cer},
 	}
 	doneChan := make(chan error)
-	//start the UDP listener
+	// start the UDP listener
 	forwardPacketFunc = mockForwardPacket
 	go UDPListener(&listenAddr, clientConf, doneChan)
 	time.Sleep(time.Second * 3)
-	//send a packet to the UDP listener
+	// send a packet to the UDP listener
 	ServerAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:55555")
 	LocalAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
 	if err != nil {
@@ -362,7 +362,7 @@ func TestUDPListener(t *testing.T) {
 		t.Fatal("error writing to udp listener")
 	}
 	UDPSocketListener.Close()
-	//get the done channel
+	// get the done channel
 	err = <-doneChan
 	if err == nil {
 		t.Error("Should have gotten an error")
@@ -389,23 +389,23 @@ func mockForwardPacket(conf *tls.Config, header UDPRxHeader, data []byte, srcprt
 
 func TestParseHeader4NoSrc(t *testing.T) {
 	buf := make([]byte, 1024)
-	//start
+	// start
 	buf[0] = 0x75
-	//header version
+	// header version
 	buf[1] = 0x01
 	buf[2] = 0x02
 	buf[3] = 0x03
-	//port = 50300 in 2 bytes, big endian
+	// port = 50300 in 2 bytes, big endian
 	buf[4] = 0xC4
 	buf[5] = 0x7C
-	//ipv4
+	// ipv4
 	buf[6] = 0x04
-	//to 192.168.1.100
+	// to 192.168.1.100
 	buf[7] = 192
 	buf[8] = 168
 	buf[9] = 1
 	buf[10] = 100
-	//end
+	// end
 	buf[11] = 0x80
 	header, err := parseHeader(&buf)
 	if err != nil {
@@ -430,23 +430,23 @@ func TestParseHeader4NoSrc(t *testing.T) {
 
 func TestParseHeader6NoSrc(t *testing.T) {
 	buf := make([]byte, 1024)
-	//start
+	// start
 	buf[0] = 0x75
-	//header version
+	// header version
 	buf[1] = 0x01
 	buf[2] = 0x02
 	buf[3] = 0x03
-	//port = 50300 in 2 bytes, big endian
+	// port = 50300 in 2 bytes, big endian
 	buf[4] = 0xC4
 	buf[5] = 0x7C
-	//ipv6
+	// ipv6
 	buf[6] = 0x06
-	//to 2600:8805:cc00:cc:ed0e:1b36:d342:474e
+	// to 2600:8805:cc00:cc:ed0e:1b36:d342:474e
 	destip := net.ParseIP("2600:8805:cc00:cc:ed0e:1b36:d342:474e")
 	for i := 0; i < 16; i++ {
 		buf[7+i] = destip[i]
 	}
-	//end
+	// end
 	buf[23] = 0x80
 	header, err := parseHeader(&buf)
 	if err != nil {

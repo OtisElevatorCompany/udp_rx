@@ -43,25 +43,25 @@ import (
 // CreateCert waits for a time > year 1970, then creates a certificate for the current ip address valid for 10 years
 func CreateCert(outpath, keypath, caKeyPath, caCertPath, keypassword string) error {
 	blockUntilTimeSync()
-	//check if the keyfile already exists, and if it doesn't, create it
+	// check if the keyfile already exists, and if it doesn't, create it
 	checkOrCreatePrivateKey(keypath)
 
-	//get IP addresses
+	// get IP addresses
 	ips, err := GetIps()
 	if err != nil {
 		log.Fatal("error getting ips", err)
 	}
 
-	//load the certificate authority certificate
+	// load the certificate authority certificate
 	caCert, err := loadCaCert(caCertPath)
 	if err != nil {
 		log.Fatal("Couldn't load/parse CA cert", err)
 	}
 
-	//load the certificate authority private key
+	// load the certificate authority private key
 	caKey := loadCaPrivateKey(caKeyPath, keypassword)
 
-	//create the new certificate which will be signed by the CA
+	// create the new certificate which will be signed by the CA
 	newCert := &x509.Certificate{
 		SerialNumber: big.NewInt(1653),
 		Subject: pkix.Name{
@@ -81,13 +81,13 @@ func CreateCert(outpath, keypath, caKeyPath, caCertPath, keypassword string) err
 		IPAddresses:           ips,
 	}
 
-	//read the key
+	// read the key
 	keyPEMBlock, err := ioutil.ReadFile(keypath)
 	if err != nil {
 		log.Fatal("Couldn't read key file", err)
 	}
 
-	//read public key from keyPEMBlock to pubkey
+	// read public key from keyPEMBlock to pubkey
 	var skippedBlockTypes []string
 	skippedBlockTypes = skippedBlockTypes[:0]
 	var keyDERBlock *pem.Block
@@ -112,15 +112,15 @@ func CreateCert(outpath, keypath, caKeyPath, caCertPath, keypassword string) err
 		log.Fatal("Couldn't get key info from keyfile", err)
 	}
 
-	//sign the new cert with the CA and set the pubkey from the key read above
-	//write those bytes to newCertB, and then those bytes to a file @outpath by PEM encoding
+	// sign the new cert with the CA and set the pubkey from the key read above
+	// write those bytes to newCertB, and then those bytes to a file @outpath by PEM encoding
 	var newCertB []byte
 	newCertB, err = x509.CreateCertificate(
-		rand.Reader, //rand reader
-		newCert,     //cert we're going to sign
-		caCert,      //the CA's cert
-		pubkey,      //the pubkey of the new cert
-		caKey)       //the priv key of the CA
+		rand.Reader, // rand reader
+		newCert,     // cert we're going to sign
+		caCert,      // the CA's cert
+		pubkey,      // the pubkey of the new cert
+		caKey)       // the priv key of the CA
 	if err != nil {
 		log.Fatal("Couldn't create certificate file", err)
 	}
@@ -134,16 +134,16 @@ func CreateCert(outpath, keypath, caKeyPath, caCertPath, keypassword string) err
 // It returns (in pem format) newCert, newKey, error
 func CreateCertInMemory(caKeyPath, caCertPath, caKeyPassword string,
 	ips []net.IP, hostnames []string) ([]byte, []byte, error) {
-	//build new private key
+	// build new private key
 	newPrivKey := createPrivateKeyInMemory()
-	//load the certificate authority certificate
+	// load the certificate authority certificate
 	caCert, err := loadCaCert(caCertPath)
 	if err != nil {
 		log.Fatal("Couldn't load/parse CA cert", err)
 	}
-	//load the certificate authority private key
+	// load the certificate authority private key
 	caKey := loadCaPrivateKey(caKeyPath, caKeyPassword)
-	//create the new certificate which will be signed by the CA
+	// create the new certificate which will be signed by the CA
 	newCert := &x509.Certificate{
 		SerialNumber: big.NewInt(1653),
 		Subject: pkix.Name{
@@ -163,30 +163,30 @@ func CreateCertInMemory(caKeyPath, caCertPath, caKeyPassword string,
 		IPAddresses:           ips,
 		DNSNames:              hostnames,
 	}
-	//get the public key from the private key
+	// get the public key from the private key
 	_, pubkey, err := parsePrivateKey(newPrivKey)
 	if err != nil {
 		log.Fatal("Couldn't get key info from keyfile", err)
 	}
-	//create a new certificate
+	// create a new certificate
 	var newCertB []byte
 	newCertB, err = x509.CreateCertificate(
-		rand.Reader, //rand reader
-		newCert,     //cert we're going to sign
-		caCert,      //the CA's cert
-		pubkey,      //the pubkey of the new cert
-		caKey)       //the priv key of the CA
+		rand.Reader, // rand reader
+		newCert,     // cert we're going to sign
+		caCert,      // the CA's cert
+		pubkey,      // the pubkey of the new cert
+		caKey)       // the priv key of the CA
 	if err != nil {
 		log.Fatal("Couldn't create certificate file", err)
 	}
-	//pem encode the key and the newly created certificate
+	// pem encode the key and the newly created certificate
 	newCertPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: newCertB})
 	newKeyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: newPrivKey})
 	return newCertPem, newKeyPem, nil
 }
 
 func loadCaPrivateKey(caKeyPath, keypassword string) crypto.PrivateKey {
-	//load the certificate authority private key
+	// load the certificate authority private key
 	var caKey crypto.PrivateKey
 	var err error
 	if keypassword == "" {
@@ -203,7 +203,7 @@ func loadCaPrivateKey(caKeyPath, keypassword string) crypto.PrivateKey {
 	return caKey
 }
 
-//load the CA certificate from a path and return an x509 cert
+// load the CA certificate from a path and return an x509 cert
 func loadCaCert(caCertPath string) (*x509.Certificate, error) {
 	caCertBytes, err := ioutil.ReadFile(caCertPath)
 	if err != nil {
@@ -217,7 +217,7 @@ func loadCaCert(caCertPath string) (*x509.Certificate, error) {
 	return caCert, nil
 }
 
-//load the CA key from a path and return the private key
+// load the CA key from a path and return the private key
 func loadCaKey(caKeyPath string) (crypto.PrivateKey, error) {
 	keyBytes, err := ioutil.ReadFile(caKeyPath)
 	if err != nil {
@@ -257,8 +257,8 @@ func loadEncryptedCaKey(caKeyPath string, password string) (crypto.PrivateKey, e
 	return caKey, nil
 }
 
-//if a private key exists at this location, do nothing. Otherwise, create a new keypair
-//with p256
+// if a private key exists at this location, do nothing. Otherwise, create a new keypair
+// with p256
 func checkOrCreatePrivateKey(keypath string) {
 	if _, err := os.Stat(keypath); os.IsNotExist(err) {
 		// path/to/whatever does not exist
@@ -278,7 +278,7 @@ func checkOrCreatePrivateKey(keypath string) {
 // createPrivateKeyInMemory creates a private key and returns []bytes in DER format if the key doesn't exist.
 // if the key does exist, returns the DER encoding of it
 func createPrivateKeyInMemory() []byte {
-	//if the file doesn't exist:
+	// if the file doesn't exist:
 	log.Debug("Creating new private key")
 	genPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -291,8 +291,8 @@ func createPrivateKeyInMemory() []byte {
 	return marshaledKey
 }
 
-//this function blocks until NTP syncs. We don't want to create a 10 year cert from
-//1970 then update the time and have an expired cert
+// this function blocks until NTP syncs. We don't want to create a 10 year cert from
+// 1970 then update the time and have an expired cert
 func blockUntilTimeSync() {
 	log.Debug("Starting time sync wait")
 	for {
@@ -335,7 +335,7 @@ func GetIps() ([]net.IP, error) {
 	return ips, nil
 }
 
-//Parses a private key from a []byte and returns the keypair
+// Parses a private key from a []byte and returns the keypair
 func parsePrivateKey(der []byte) (crypto.PrivateKey, crypto.PublicKey, error) {
 	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
 		return key, &key.PublicKey, nil

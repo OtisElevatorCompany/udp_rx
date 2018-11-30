@@ -1,5 +1,13 @@
 # udp_rx Header Format
 
+## Current Header Version
+The current header version is:
+
+`1.0.0`
+
+This section will be updated on new releases of udp_rx and is up to date as of version A20.
+
+
 ## Description
 udp_rx supports IPv4 and IPv6 and has a variable length header to accommodate the different lengths in addressing. udp_rx also supports multiple IP addresses assigned to a single adapter. To support this, a 'sender' IP address can be added to the header to force udp_rx to use that IP address as the sending IP.
 

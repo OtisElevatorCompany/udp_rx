@@ -47,17 +47,17 @@ var newdatalen = 4
 // ForwardMap should be set to not nil if debug is on
 var ForwardMap map[string]int
 
-//this mutex protects the TLS connection cache
-//NOTE: the key here is a string in the form of "dest|src"
+// this mutex protects the TLS connection cache
+// NOTE: the key here is a string in the form of "dest|src"
 var mutexMap = make(map[string]*sync.Mutex)
 var mutexWriterMutex = &sync.Mutex{}
 
-//connMap is a hashmap of strings (ip addresses in string form) to tls connection pointers
-//NOTE: the key here is a string in the form of "dest|src"
+// connMap is a hashmap of strings (ip addresses in string form) to tls connection pointers
+// NOTE: the key here is a string in the form of "dest|src"
 var connMap = make(map[string]*tls.Conn)
 var lastConnFail = make(map[string]time.Time)
 
-//RemoteTLSPort is the port of the remote TLS server (also the port of the local TLS server)
+// RemoteTLSPort is the port of the remote TLS server (also the port of the local TLS server)
 var RemoteTLSPort = ":55554"
 
 // ConnTimeoutVal is a variable controlling how long to wait (in seconds)
@@ -78,7 +78,7 @@ func TCPListener(listenAddrFlag *string, serverConf *tls.Config, done chan error
 		return
 	}
 	TCPSocketListener = ln
-	//create UDP socket. On windows this actually does nothing...
+	// create UDP socket. On windows this actually does nothing...
 	err = CreateUDPSocket()
 	if err != nil {
 		log.WithFields(
@@ -101,14 +101,14 @@ func TCPListener(listenAddrFlag *string, serverConf *tls.Config, done chan error
 			done <- err
 			return
 		}
-		//put the connection into the mapping
+		// put the connection into the mapping
 		remoteAddr := strings.Split(conn.RemoteAddr().String(), ":")[0]
 		localAddr := strings.Split(conn.LocalAddr().String(), ":")[0]
 		if tlsconn, ok := conn.(*tls.Conn); ok {
 			addConn(remoteAddr, localAddr, tlsconn)
 		}
 
-		//go handle a connection in a gothread
+		// go handle a connection in a gothread
 		go handleConnectionFunc(conn, SendUDP)
 	}
 }
@@ -129,7 +129,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 		done <- err
 		return
 	}
-	//listen on the configured UDP port
+	// listen on the configured UDP port
 	ServerConn, err := net.ListenUDP("udp", ServerAddr)
 	UDPSocketListener = ServerConn
 	if err != nil {
@@ -157,10 +157,10 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 		}
 		// parse and remove the header from the packet
 		header, err := parseHeader(&buf)
-		//debug logging
+		// debug logging
 		if ForwardMap != nil {
 			fullAddr := fmt.Sprintf("%s:%d", header.DestIPAddr.String(), header.PortNumber)
-			//if nothing in forward map
+			// if nothing in forward map
 			if ForwardMap[fullAddr] == 0 {
 				ForwardMap[fullAddr] = 1
 				log.Debug("Forwarding first message to ", fullAddr)
@@ -171,8 +171,8 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 				}
 			}
 		}
-		//end debug logging
-		//if farport is reserved, don't continue processing, get the next packet
+		// end debug logging
+		// if farport is reserved, don't continue processing, get the next packet
 		if header.PortNumber == 0 || header.PortNumber == 1023 {
 			log.WithFields(
 				log.Fields{
@@ -181,7 +181,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 				}).Error("Got a bad dest port")
 			continue
 		}
-		//if there was an error here, don't try and forward the packet
+		// if there was an error here, don't try and forward the packet
 		if err != nil {
 			log.WithFields(
 				log.Fields{
@@ -189,7 +189,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 				}).Error("Error in packet, not forwarding")
 			continue
 		}
-		//catch if the dest is a local IP address
+		// catch if the dest is a local IP address
 		isLocalHost := false
 		ips, err := certcreator.GetIps()
 		if err != nil {
@@ -218,7 +218,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 					}).Error("Error sending to localhost")
 			}
 		} else {
-			//otherwise forward to dest
+			// otherwise forward to dest
 			go forwardPacketFunc(clientConf, header, buf[:n], src.Port, RemoteTLSPort)
 		}
 		// clear the buffer for garbage collection by setting to nil explicitly
@@ -229,7 +229,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 // ConfigureRootCAs creats a new systemcertpool and adds a cert
 // from a pem encoded cert file to it
 func ConfigureRootCAs(caCertPathFlag *string) *x509.CertPool {
-	//also load as bytes for x509
+	// also load as bytes for x509
 	// Read in the cert file
 	x509certs, err := ioutil.ReadFile(*caCertPathFlag)
 	if err != nil {
@@ -241,7 +241,7 @@ func ConfigureRootCAs(caCertPathFlag *string) *x509.CertPool {
 	if rootCAs == nil {
 		rootCAs = x509.NewCertPool()
 	}
-	//append the local cert to the in-memory system CA pool
+	// append the local cert to the in-memory system CA pool
 	if ok := rootCAs.AppendCertsFromPEM(x509certs); !ok {
 		log.Warning("No certs appended, using system certs only")
 	}
@@ -288,7 +288,7 @@ func StopThreads() {
 
 // addConn caches a connection for an incoming TLS connection
 func addConn(remoteAddr, localAddr string, conn *tls.Conn) {
-	//create a new mutex for this address if one doesn't exist
+	// create a new mutex for this address if one doesn't exist
 	mapKeyComplete := fmt.Sprintf("%s|%s", remoteAddr, localAddr)
 	mapKeyNoSrc := fmt.Sprintf("%s|", remoteAddr)
 	keys := [2]string{mapKeyComplete, mapKeyNoSrc}
@@ -297,7 +297,7 @@ func addConn(remoteAddr, localAddr string, conn *tls.Conn) {
 		mutexMap[key].Lock()
 		defer mutexMap[key].Unlock()
 		existingConn := connMap[key]
-		//check if there's already a connection, if there is, do nothing, it should be OK
+		// check if there's already a connection, if there is, do nothing, it should be OK
 		if existingConn == nil {
 			connMap[key] = conn
 		}
@@ -319,7 +319,7 @@ func checkMutexMapMutex(addr string) bool {
 // this handles an incoming TLS connection, sending udp packets to a sendUDPFn
 func handleConnection(conn net.Conn, sender sendUDPFn) {
 	defer conn.Close()
-	//create a a reader for the connection
+	// create a a reader for the connection
 	r := bufio.NewReader(conn)
 	counter := 0
 	lastLoopEOF := false
@@ -339,17 +339,17 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 				log.Error(err)
 				return
 			} else if lastLoopEOF {
-				//if the last loop was also an immediate eof, return
+				// if the last loop was also an immediate eof, return
 				return
 			} else {
-				//set double immediate lastLoopEOF flag
+				// set double immediate lastLoopEOF flag
 				lastLoopEOF = true
 				continue
 			}
 		}
 		// if we didn't hit an EOF, we have a packet, set lastLoopEOF to false
 		lastLoopEOF = false
-		//set message length
+		// set message length
 		mlength := (int(lenbytes[0]) << 8) + int(lenbytes[1])
 		// get the 2 srcport bytes from the front and combine them
 		_, err = io.ReadAtLeast(r, srcprtbytes, 2)
@@ -384,7 +384,7 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 		rxipandport := conn.RemoteAddr().String()
 		// get the ip and port the sender connected to (might be multiple)
 		localipandport := conn.LocalAddr().String()
-		//split out just the IPs into a string
+		// split out just the IPs into a string
 		remoteIP := strings.Split(rxipandport, ":")[0]
 		localIP := strings.Split(localipandport, ":")[0]
 		// if netprofiling, add the time bytes
@@ -419,7 +419,7 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 		}
 		// debug logging code
 		if ForwardMap != nil {
-			//this string is in form [fromIpAddress]-[destination port]
+			// this string is in form [fromIpAddress]-[destination port]
 			debugmapstring := fmt.Sprintf("%s-%d", remoteIP, destport)
 			if ForwardMap[debugmapstring] == 0 {
 				ForwardMap[debugmapstring] = 1
@@ -501,7 +501,7 @@ func forwardPacket(conf *tls.Config, header UDPRxHeader, data []byte, srcprt int
 
 // gets or creates a new TLS connection to a remote host
 func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn, error) {
-	//create a new mutex for this address if one doesn't exist
+	// create a new mutex for this address if one doesn't exist
 	var mapKey string
 	if len(header.SourceIPAddr) > 0 {
 		mapKey = fmt.Sprintf("%s|%s", header.DestIPAddr.String(), header.SourceIPAddr.String())
@@ -522,7 +522,7 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 			return nil, &connTimeoutError{"Connection hasn't timed out"}
 		}
 		log.Info("creating new cached connection for: ", mapKey)
-		//If there is no source IP, we can do the easy tls.Dial
+		// If there is no source IP, we can do the easy tls.Dial
 		var newconn *tls.Conn
 		var err error
 		// if there's no SourceIPAddr, do the standard tls dial
@@ -548,7 +548,7 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 			}
 			connMap[mapKey] = newconn
 		}
-		//start listening for connections in on this connection
+		// start listening for connections in on this connection
 		go handleConnection(newconn, SendUDP)
 		// debug logging
 		if ForwardMap != nil {
@@ -566,7 +566,7 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 	return conn, nil
 }
 
-//removeconn will remove all connections to the remote host, regardless of sending IP address
+// removeconn will remove all connections to the remote host, regardless of sending IP address
 func removeConn(header UDPRxHeader) {
 	mapKey := fmt.Sprintf("%s|%s", header.DestIPAddr.String(), header.SourceIPAddr.String())
 	checkMutexMapMutex(mapKey)
@@ -581,14 +581,14 @@ func removeConn(header UDPRxHeader) {
 
 // UDPRxHeader represents the udp_rx header on incoming udp_packets
 type UDPRxHeader struct {
-	//header version
+	// header version
 	MajorVersion byte
 	MinorVersion byte
 	PatchVersion byte
-	//Port number and Dest IP address
+	// Port number and Dest IP address
 	PortNumber int
 	DestIPAddr net.IP
-	//Optional source IP address
+	// Optional source IP address
 	SourceIPAddr net.IP
 }
 
@@ -621,7 +621,7 @@ func parseHeader(buf *[]byte) (UDPRxHeader, error) {
 		}
 		return header, nil
 	} else if (*buf)[nextindex] == 0x76 {
-		//otherwise, if it's 0x76, set the src IP
+		// otherwise, if it's 0x76, set the src IP
 		if ipversion == 4 {
 			header.SourceIPAddr = (*buf)[12:16]
 			*buf = (*buf)[17:]

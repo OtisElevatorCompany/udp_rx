@@ -29,14 +29,14 @@ func main() {
 	// device key output
 	deviceKeyFlag := flag.String("devkey", "udp_rx.key", "The output path for the udp_rx device key")
 	deviceCertFlag := flag.String("devcert", "udp_rx.crt", "The output path for the udp_rx device cert")
-	//specify ip to build for
+	// specify ip to build for
 	ipFlag := flag.String("ips", "", "A comma separated string of IP addresses. If not set, it will use this system's IP addresses")
 	// parse args
 	flag.Parse()
 	// create the certs
-	//err := certcreator.CreateCert(*deviceCertFlag, *deviceKeyFlag, *caKeyPathFlag, *caCertPathFlag, *caKeyPasswordFlag)
+	// err := certcreator.CreateCert(*deviceCertFlag, *deviceKeyFlag, *caKeyPathFlag, *caCertPathFlag, *caKeyPasswordFlag)
 	if *ipFlag != "" {
-		//parse the ip addresses into strings
+		// parse the ip addresses into strings
 		ips := strings.Split(*ipFlag, ",")
 		caCert, err := ioutil.ReadFile(*caCertPathFlag)
 		caKey, err := ioutil.ReadFile(*caKeyPathFlag)
@@ -67,7 +67,7 @@ func main() {
 }
 
 func generateDeviceKeyPair(dkr deviceKeyRequest) (deviceKeyResponse, error) {
-	//parse the IPs
+	// parse the IPs
 	var ips []net.IP
 	for _, ipstring := range dkr.Ips {
 		parsedip := net.ParseIP(ipstring)
@@ -75,26 +75,26 @@ func generateDeviceKeyPair(dkr deviceKeyRequest) (deviceKeyResponse, error) {
 			ips = append(ips, parsedip)
 		}
 	}
-	//create a new private key
+	// create a new private key
 	newPrivKey := createPrivateKeyInMemory()
-	//load the certificate authority certificate
+	// load the certificate authority certificate
 	caCertBlock, _ := pem.Decode([]byte(dkr.CaCert))
 	caCert, err := x509.ParseCertificate(caCertBlock.Bytes)
 	if err != nil {
 		return deviceKeyResponse{}, err
 	}
-	//load the certificate authority private key
+	// load the certificate authority private key
 	caKeyBlock, _ := pem.Decode([]byte(dkr.CaKey))
 	caKey, _, err := parsePrivateKey(caKeyBlock.Bytes)
 	if err != nil {
 		return deviceKeyResponse{}, err
 	}
-	//get the public key from the private key
+	// get the public key from the private key
 	_, pubkey, err := parsePrivateKey(newPrivKey)
 	if err != nil {
 		return deviceKeyResponse{}, err
 	}
-	//create the new certificate which will be signed by the CA
+	// create the new certificate which will be signed by the CA
 	newCert := &x509.Certificate{
 		SerialNumber: big.NewInt(1653),
 		Subject: pkix.Name{
@@ -116,11 +116,11 @@ func generateDeviceKeyPair(dkr deviceKeyRequest) (deviceKeyResponse, error) {
 	}
 	var newCertB []byte
 	newCertB, err = x509.CreateCertificate(
-		rand.Reader, //rand reader
-		newCert,     //cert we're going to sign
-		caCert,      //the CA's cert
-		pubkey,      //the pubkey of the new cert
-		caKey)       //the priv key of the CA
+		rand.Reader, // rand reader
+		newCert,     // cert we're going to sign
+		caCert,      // the CA's cert
+		pubkey,      // the pubkey of the new cert
+		caKey)       // the priv key of the CA
 	if err != nil {
 		return deviceKeyResponse{}, err
 	}
@@ -149,7 +149,7 @@ func parsePrivateKey(der []byte) (crypto.PrivateKey, crypto.PublicKey, error) {
 	return nil, nil, errors.New("tls: failed to parse private key")
 }
 func createPrivateKeyInMemory() []byte {
-	//if the file doesn't exist:
+	// if the file doesn't exist:
 	//log.Debug("Creating new private key")
 	genPrivKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {

@@ -24,7 +24,7 @@ import (
 	"./udprxlib"
 )
 
-//TestLogConfig checks the logger configuration method
+// TestLogConfig checks the logger configuration method
 func TestLogConfig(t *testing.T) {
 	t0 := 0
 	t1 := 1
