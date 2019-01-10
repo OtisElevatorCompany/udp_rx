@@ -104,7 +104,10 @@ func setupTLS(rootCAs *x509.CertPool) net.Listener {
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    rootCAs,
 	}
-	ln, _ := tls.Listen("tcp", ":55554", serverConf)
+	ln, err := tls.Listen("tcp", ":55554", serverConf)
+	if err != nil {
+		log.Panic("error listening to tls - " + err.Error())
+	}
 	return ln
 }
 func handleIncomingTLS(ln net.Listener) {
@@ -204,12 +207,9 @@ func TestForwardPacket(t *testing.T) {
 	// block until readyTLS
 	tlsReady := <-readyTLS
 	log.Infof("tlsReady: %t", tlsReady)
-	// time.Sleep(5 * time.Second)
-	buf := make([]byte, 13)
-	buf[0] = 0x11
-	buf[1] = 0x92
+	buf := make([]byte, 11)
 	for i := 0; i < 11; i++ {
-		buf[2+i] = (byte)(10 - i)
+		buf[i] = (byte)(10 - i)
 	}
 	// make a header
 	header := UDPRxHeader{
@@ -248,7 +248,7 @@ func listenTLS(readyTLS chan bool) {
 		// check length bytes
 		lenbuf := make([]byte, 2)
 		io.ReadAtLeast(r, lenbuf, 2)
-		if lenbuf[0] != 0 || lenbuf[1] != 13 {
+		if lenbuf[0] != 0 || lenbuf[1] != 11 {
 			panic("length wrong")
 		}
 		// check srcport bytes
@@ -260,7 +260,7 @@ func listenTLS(readyTLS chan bool) {
 		// check destport
 		destprtbuf := make([]byte, 2)
 		io.ReadAtLeast(r, destprtbuf, 2)
-		if destprtbuf[0] != 0x11 || destprtbuf[1] != 0x92 {
+		if destprtbuf[0] != 0xC4 || destprtbuf[1] != 0x7C {
 			panic("destprt bytes wrong")
 		}
 		// finally, check data

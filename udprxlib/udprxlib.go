@@ -42,7 +42,7 @@ import (
 var cpuProfiling = false
 var netProfiling = false
 var maxProfilingPackets = 1000
-var newdatalen = 4
+var newdatalen = 6
 
 // ForwardMap should be set to not nil if debug is on
 var ForwardMap map[string]int
@@ -157,6 +157,24 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 		}
 		// parse and remove the header from the packet
 		header, err := parseHeader(&buf)
+		if err != nil {
+			log.WithFields(
+				log.Fields{
+					"error": err,
+				}).Error("Error parsing header. continuing.")
+			continue
+		}
+		removedbytes := 7                      //starts at 7, which is the magic+version+destprt+ipversion
+		removedbytes += len(header.DestIPAddr) // add the length of the dest ip address
+		//if there was no src IP, just add 1 for the end of header magic number
+		if len(header.SourceIPAddr) == 0 {
+			removedbytes++
+		} else {
+			removedbytes++                           // add one for the src ip follows
+			removedbytes += len(header.SourceIPAddr) // add the length of the src ip address
+			removedbytes++                           // one more for the end of header number
+		}
+
 		// debug logging
 		if ForwardMap != nil {
 			fullAddr := fmt.Sprintf("%s:%d", header.DestIPAddr.String(), header.PortNumber)
@@ -219,7 +237,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 			}
 		} else {
 			// otherwise forward to dest
-			go forwardPacketFunc(clientConf, header, buf[:n], src.Port, RemoteTLSPort)
+			go forwardPacketFunc(clientConf, header, buf[:n-removedbytes], src.Port, RemoteTLSPort)
 		}
 		// clear the buffer for garbage collection by setting to nil explicitly
 		buf = nil
@@ -403,7 +421,7 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 			"destport":  destport,
 		}).Debug("Sending UDP packet")
 		// sending to local IP:destport, from remoteIP:srcport
-		err = sender(remoteIP, localIP, srcport, destport, buf[:mlength-2], counter)
+		err = sender(remoteIP, localIP, srcport, destport, buf[:mlength], counter)
 		if err != nil {
 			log.Error(err)
 			return
