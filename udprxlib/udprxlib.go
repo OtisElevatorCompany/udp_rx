@@ -157,6 +157,14 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 		}
 		// parse and remove the header from the packet
 		header, err := parseHeader(&buf)
+		if err != nil {
+			log.WithFields(
+				log.Fields{
+					"error": err,
+				}).Error("Error parsing header. continuing.")
+			continue
+		}
+		removedbytes := 4 //
 		// debug logging
 		if ForwardMap != nil {
 			fullAddr := fmt.Sprintf("%s:%d", header.DestIPAddr.String(), header.PortNumber)
