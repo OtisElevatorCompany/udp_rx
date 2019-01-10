@@ -104,7 +104,10 @@ func setupTLS(rootCAs *x509.CertPool) net.Listener {
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    rootCAs,
 	}
-	ln, _ := tls.Listen("tcp", ":55554", serverConf)
+	ln, err := tls.Listen("tcp", ":55554", serverConf)
+	if err != nil {
+		log.Panic("error listening to tls")
+	}
 	return ln
 }
 func handleIncomingTLS(ln net.Listener) {
