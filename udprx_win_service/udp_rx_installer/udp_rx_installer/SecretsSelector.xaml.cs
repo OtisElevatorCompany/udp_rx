@@ -15,6 +15,7 @@ using System.Windows.Shapes;
 //using Microsoft.WindowsAPICodePack.Dialogs;
 using System.Diagnostics;
 using System.IO;
+using System.Collections;
 
 namespace udp_rx_installer
 {
@@ -23,6 +24,10 @@ namespace udp_rx_installer
     /// </summary>
     public partial class SecretsSelector : Page
     {
+        private bool skipCerts { get; set; } = false;
+        private string[] tocheck = { "cafile", "key", "cert" };
+        private Hashtable backup_vals = new Hashtable();
+
         public bool ValidFiles { get; set; } = false;
 #if DEBUG
         //public string SecretsDirectory { get; set; } = @"C:\Users\jeremymill\Documents\dev_secrets";
@@ -88,6 +93,11 @@ namespace udp_rx_installer
             //testing new 
             Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog();
             openFileDialog.InitialDirectory = SecretsDirectory;
+            //set default filter
+            if (filetype == "cafile") openFileDialog.Filter = "crt files (*.crt)|*.crt;*.CRT|All files (*.*)|*.*";
+            else if (filetype == "key") openFileDialog.Filter = "key files (*.key)|*.key;*.KEY|All files (*.*)|*.*";
+            else if (filetype == "cert") openFileDialog.Filter = "crt files (*.crt)|*.crt;*.CRT|All files (*.*)|*.*";
+            //get the selection
             if (openFileDialog.ShowDialog() == true)
             {
                 App.Current.Properties[filetype] = openFileDialog.FileName;
@@ -102,7 +112,6 @@ namespace udp_rx_installer
 
         private void CheckFiles()
         {
-            string[] tocheck = { "cafile", "key", "cert" };
             foreach(var check in tocheck)
             {
                 if(!File.Exists((string)App.Current.Properties[check]))
@@ -112,6 +121,57 @@ namespace udp_rx_installer
                 }
             }
             this.next_button.IsEnabled = true;
+        }
+
+        private void SkipClick_Click(object sender, RoutedEventArgs e)
+        {
+            if(SkipCertsBox.IsChecked == true)
+            {
+                skipCerts = true;
+                //disable textboxes
+                ca_textbox.IsEnabled = false;
+                devcert_textbox.IsEnabled = false;
+                devkey_textbox.IsEnabled = false;
+                //disable buttons
+                ca_button.IsEnabled = false;
+                devcert_button.IsEnabled = false;
+                devkey_button.IsEnabled = false;
+                //move values out
+                foreach (var check in tocheck)
+                {
+                    if(backup_vals.ContainsKey(check))
+                    {
+                        backup_vals[check] = (string)App.Current.Properties[check];
+                    }
+                    else
+                    {
+                        backup_vals.Add(check, (string)App.Current.Properties[check]);
+                    }
+                    App.Current.Properties[check] = "";
+                }
+                this.next_button.IsEnabled = true;
+            }
+            else
+            {
+                skipCerts = false;
+                foreach (var check in tocheck)
+                {
+                    if (backup_vals.ContainsKey(check))
+                    {
+                        App.Current.Properties[check] = backup_vals[check];
+                    }
+                }
+                //enable textboxes
+                ca_textbox.IsEnabled = true;
+                devcert_textbox.IsEnabled = true;
+                devkey_textbox.IsEnabled = true;
+                //enable buttons
+                ca_button.IsEnabled = true;
+                devcert_button.IsEnabled = true;
+                devkey_button.IsEnabled = true;
+                //rerun check files
+                CheckFiles();
+            }
         }
     }
 }
