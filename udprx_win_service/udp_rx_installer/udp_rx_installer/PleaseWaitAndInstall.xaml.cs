@@ -88,11 +88,29 @@ namespace udp_rx_installer
                     File.Copy(filepath, String.Format("{0}\\{1}", _programdatapath, filename), true);
                 }
             }
-            //write the config file to the programdata path
-            using (Stream input = assembly.GetManifestResourceStream("udp_rx_installer.udp_rx_conf.json"))
-            using (Stream output = File.Create(_programdatapath + "\\udp_rx_conf.json"))
+            //check if the conf file exists
+            bool copy_config = true;
+            if(File.Exists(_programdatapath + "\\udp_rx_conf.json"))
             {
-                CopyStream(input, output);
+                MessageBoxResult messageBoxResult = System.Windows.MessageBox.Show(
+                    "Existing configuration file found, overwrite it?", // Question we're asking
+                    "Overwrite Config File", //Box Title
+                    System.Windows.MessageBoxButton.YesNo, // Yes/No Dialog
+                    MessageBoxImage.Warning, // Warning Image in Box                    
+                    MessageBoxResult.No); //default result
+                if (messageBoxResult == MessageBoxResult.No)
+                {
+                    copy_config = false;
+                }
+            }
+            //write the config file to the programdata path if copy_config
+            if (copy_config)
+            {
+                using (Stream input = assembly.GetManifestResourceStream("udp_rx_installer.udp_rx_conf.json"))
+                using (Stream output = File.Create(_programdatapath + "\\udp_rx_conf.json"))
+                {
+                    CopyStream(input, output);
+                }
             }
             //install the service
             var exepath = _programfilespath + "\\udprx_win_service.exe";
