@@ -93,6 +93,11 @@ namespace udp_rx_installer
             //testing new 
             Microsoft.Win32.OpenFileDialog openFileDialog = new Microsoft.Win32.OpenFileDialog();
             openFileDialog.InitialDirectory = SecretsDirectory;
+            //set default filter
+            if (filetype == "cafile") openFileDialog.Filter = "crt files (*.crt)|*.crt;*.CRT|All files (*.*)|*.*";
+            else if (filetype == "key") openFileDialog.Filter = "key files (*.key)|*.key;*.KEY|All files (*.*)|*.*";
+            else if (filetype == "cert") openFileDialog.Filter = "crt files (*.crt)|*.crt;*.CRT|All files (*.*)|*.*";
+            //get the selection
             if (openFileDialog.ShowDialog() == true)
             {
                 App.Current.Properties[filetype] = openFileDialog.FileName;
@@ -156,6 +161,15 @@ namespace udp_rx_installer
                         App.Current.Properties[check] = backup_vals[check];
                     }
                 }
+                //enable textboxes
+                ca_textbox.IsEnabled = true;
+                devcert_textbox.IsEnabled = true;
+                devkey_textbox.IsEnabled = true;
+                //enable buttons
+                ca_button.IsEnabled = true;
+                devcert_button.IsEnabled = true;
+                devkey_button.IsEnabled = true;
+                //rerun check files
                 CheckFiles();
             }
         }
