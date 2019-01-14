@@ -5,7 +5,7 @@ The current header version is:
 
 `1.0.0`
 
-This section will be updated on new releases of udp_rx and is up to date as of version A20.
+This section will be updated on new releases of udp_rx and is up to date as of version A23.
 
 
 ## Description
