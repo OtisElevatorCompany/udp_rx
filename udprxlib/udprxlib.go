@@ -73,7 +73,10 @@ func TCPListener(listenAddrFlag *string, serverConf *tls.Config, done chan error
 	listenAddr := fmt.Sprintf("%s:55554", *listenAddrFlag)
 	ln, err := tls.Listen("tcp", listenAddr, serverConf)
 	if err != nil {
-		log.Error(err)
+		log.WithFields(
+			log.Fields{
+				"error": err,
+			}).Error("Error setting up tls listener")
 		done <- err
 		return
 	}
@@ -354,7 +357,10 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 		// handle input errors here
 		if err != nil {
 			if err != io.EOF {
-				log.Error(err)
+				log.WithFields(
+					log.Fields{
+						"error": err,
+					}).Error("Non EOF error in TLS handleConnection")
 				return
 			} else if lastLoopEOF {
 				// if the last loop was also an immediate eof, return
@@ -372,7 +378,10 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 		// get the 2 srcport bytes from the front and combine them
 		_, err = io.ReadAtLeast(r, srcprtbytes, 2)
 		if err != nil {
-			log.Error(err)
+			log.WithFields(
+				log.Fields{
+					"error": err,
+				}).Error("Error getting srcport bytes")
 			return
 		}
 		// check for reserved ports
@@ -383,19 +392,29 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 		// get the 2 destport bytes from the front and combine them
 		_, err = io.ReadAtLeast(r, destportbytes, 2)
 		if err != nil {
-			log.Error(err)
+			log.WithFields(
+				log.Fields{
+					"error": err,
+				}).Error("Error getting dest port bytes")
 			return
 		}
 		// check for reserved ports (again)
 		destport := (uint(destportbytes[0]) << 8) + uint(destportbytes[1])
 		if destport < 0 || destport == 0 || destport == 1023 {
-			log.Error("invalid destination port number: ", destport)
+			log.WithFields(
+				log.Fields{
+					"error":    err,
+					"destport": destport,
+				}).Error("invalid destination port number")
 			return
 		}
 		// get the rest of the data. It's mlength-2 because we already got destport
 		_, err2 := io.ReadAtLeast(r, buf, mlength-2)
 		if err2 != nil {
-			log.Error(err)
+			log.WithFields(
+				log.Fields{
+					"error": err,
+				}).Error("Error getting data bytes from message")
 			return
 		}
 		// get the remote (sender) ip and port
@@ -423,7 +442,14 @@ func handleConnection(conn net.Conn, sender sendUDPFn) {
 		// sending to local IP:destport, from remoteIP:srcport
 		err = sender(remoteIP, localIP, srcport, destport, buf[:mlength], counter)
 		if err != nil {
-			log.Error(err)
+			log.WithFields(
+				log.Fields{
+					"error":    err,
+					"remoteIP": remoteIP,
+					"localIP":  localIP,
+					"srcport":  srcport,
+					"destport": destport,
+				}).Error("Error sending to local IP:Port")
 			return
 		}
 		// if we're cpu profiling, keep track of when to stop the profile
@@ -485,7 +511,10 @@ func forwardPacket(conf *tls.Config, header UDPRxHeader, data []byte, srcprt int
 		if err != nil {
 			_, ok := err.(*connTimeoutError)
 			if !ok {
-				log.Error(err)
+				log.WithFields(
+					log.Fields{
+						"error": err,
+					}).Error("Non-timeout error in getConn")
 			}
 			return err
 		}
@@ -493,7 +522,11 @@ func forwardPacket(conf *tls.Config, header UDPRxHeader, data []byte, srcprt int
 		n, err := conn.Write(newdata)
 		if err != nil {
 			// if there was an error, try again 3 times, then remove the connection
-			log.Error(n, err)
+			log.WithFields(
+				log.Fields{
+					"error": err,
+					"try":   n,
+				}).Error("Error writing data to connection")
 			if try < 3 {
 				log.Debug("removing old connmap")
 				removeConn(header)
@@ -548,7 +581,12 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 		if len(header.SourceIPAddr) == 0 {
 			newconn, err = tls.Dial("tcp", header.DestIPAddr.String()+remotePort, conf)
 			if err != nil {
-				log.Error(err)
+				log.WithFields(
+					log.Fields{
+						"error":      err,
+						"destip":     header.DestIPAddr.String(),
+						"remoteport": remotePort,
+					}).Error("Error dialing destination")
 				lastConnFail[mapKey] = time.Now()
 				return nil, err
 			}
@@ -560,7 +598,13 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 			}
 			newconn, err = tls.DialWithDialer(&dialer, "tcp", header.DestIPAddr.String()+remotePort, conf)
 			if err != nil {
-				log.Error(err)
+				log.WithFields(
+					log.Fields{
+						"error":      err,
+						"destip":     header.DestIPAddr.String(),
+						"remoteport": remotePort,
+						"sourceip":   header.SourceIPAddr,
+					}).Error("Error dialing destination with source ip")
 				lastConnFail[mapKey] = time.Now()
 				return nil, err
 			}

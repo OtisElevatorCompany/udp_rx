@@ -61,7 +61,7 @@ func main() {
 	}
 	// get and parse command line args
 	versionFlag := flag.Bool("version", false, "Print the Version number and exit")
-	logFlag := flag.Int("loglevel", 0, "level of logging. 0 is warn+, 1 is Info+, 2 is debug+")
+	logFlag := flag.Int("loglevel", 2, "level of logging. 0 is warn+, 1 is Info+, 2 is debug+")
 	listenAddrFlag := flag.String("bindaddr", defaultListenAddr, "The IP address to bind the listening UDP socket to")
 	cpuprofileFlag := flag.String("cpuprofile", "", "If specified writed a cpuprofile to the given filename")
 	maxProfilingPacketsFlag := flag.Int("maxprofpackets", 1000, "the maximum number of packets allowed to be forwarded during CPU profiling")
@@ -141,12 +141,7 @@ func main() {
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{cer},
 	}
-	serverConf = &tls.Config{
-		Certificates: []tls.Certificate{cer},
-		MinVersion:   tls.VersionTLS12,
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		ClientCAs:    rootCAs,
-	}
+	serverConf = udprxlib.GetServerConfig(rootCAs, cer)
 
 	// start listening on the UDP port in go routine
 	udpListenerDone := make(chan error, 1)
@@ -213,10 +208,14 @@ func setConfigValues(conf *udprxlib.ConfFile, listAddrArg, keyPathArg, certPathA
 }
 
 func modifyDefaultsWindows() {
-	confFilePath = "c:\\programdata\\udp_rx\\udp_rx_conf.windows.json"
-	defaultKeyPath = "c:\\programdata\\udp_rx\\udp_rx.key"
-	defaultCertPath = "c:\\programdata\\udp_rx\\udp_rx.crt"
-	defaultCACertPath = "c:\\programdata\\udp_rx\\ca.crt"
+	// confFilePath = "c:\\programdata\\udp_rx\\udp_rx_conf.windows.json"
+	// defaultKeyPath = "c:\\programdata\\udp_rx\\udp_rx.key"
+	// defaultCertPath = "c:\\programdata\\udp_rx\\udp_rx.crt"
+	// defaultCACertPath = "c:\\programdata\\udp_rx\\ca.crt"
+	confFilePath = "C:\\Users\\jeremymill\\Documents\\temp\\udp_rx_conf.windows.json"
+	defaultKeyPath = "C:\\Users\\jeremymill\\Documents\\temp\\udp_rx.key"
+	defaultCertPath = "C:\\Users\\jeremymill\\Documents\\temp\\udp_rx.crt"
+	defaultCACertPath = "C:\\Users\\jeremymill\\Documents\\temp\\ca.crt"
 }
 
 func isWindows() bool {
