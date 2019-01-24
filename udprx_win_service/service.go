@@ -137,12 +137,7 @@ func runService(name string, isDebug bool) {
 		Certificates: []tls.Certificate{cer},
 	}
 	// serverConf
-	serverConf = &tls.Config{
-		Certificates: []tls.Certificate{cer},
-		MinVersion:   tls.VersionTLS12,
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		ClientCAs:    rootCAs,
-	}
+	serverConf = udprxlib.GetServerConfig(rootCAs, &cer)
 	// config done
 	elog.Info(startingService, fmt.Sprintf("starting %s service", name))
 	run := svc.Run

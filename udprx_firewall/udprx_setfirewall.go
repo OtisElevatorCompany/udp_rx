@@ -41,7 +41,7 @@ func main() {
 		}
 		// try to parse to an int, continue if we can't
 		for _, netInterface := range interfaces {
-			if strings.HasPrefix(netInterface.Name, "lo") {
+			if !strings.HasPrefix(netInterface.Name, "lo") {
 				// iptables -I input -i eth0 -p udp --dport [port to REJECT] -j REJECT
 				var setArg string
 				if !*unsetFlag {

@@ -33,7 +33,7 @@ import (
 )
 
 // Version is a constant that is this verion of the code, according to OTIS standards
-const Version = "A2331825AAA"
+const Version = "A2431825AAA"
 
 // RemoteTLSPort is the port of the remote TLS server (also the port of the local TLS server)
 const RemoteTLSPort = ":55554"
@@ -141,12 +141,7 @@ func main() {
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{cer},
 	}
-	serverConf = &tls.Config{
-		Certificates: []tls.Certificate{cer},
-		MinVersion:   tls.VersionTLS12,
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		ClientCAs:    rootCAs,
-	}
+	serverConf = udprxlib.GetServerConfig(rootCAs, &cer)
 
 	// start listening on the UDP port in go routine
 	udpListenerDone := make(chan error, 1)
