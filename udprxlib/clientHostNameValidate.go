@@ -23,74 +23,57 @@ package udprxlib
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
+	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
-// // ClientHostNameValidate performs a
-// func ClientHostNameValidate(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-// 	//copied from the default options in src/crypto/tls/handshake_server.go, 680 (go 1.11)
-// 	opts := x509.VerifyOptions{
-// 		Roots:         c.config.ClientCAs,
-// 		CurrentTime:   c.config.time(),
-// 		Intermediates: x509.NewCertPool(),
-// 		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-// 	}
+var serverCert *tls.Certificate
+var rootCAs *x509.CertPool
 
-// 	roots := x509.NewCertPool()
-// 	for _, rawCert := range rawCerts {
-// 		cert, _ := x509.ParseCertificate(rawCert)
-// 		roots.AddCert(cert)
-// 	}
-// 	opts := x509.VerifyOptions{
-// 		Roots: roots,
-// 	}
-// 	_, err := cert.Verify(opts)
-// 	return err
-// }
+// GetServerConfig returns a udp_rx TLS server configuration that validates
+// Client Certificates for signing by the root CA as well as their connecting IP
+// address
+func GetServerConfig(rcas *x509.CertPool, sc *tls.Certificate) *tls.Config {
+	serverCert = sc
+	rootCAs = rcas
+	serverConf := &tls.Config{
+		GetCertificate: func(hi *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return serverCert, nil
+		},
+		GetConfigForClient: func(hi *tls.ClientHelloInfo) (*tls.Config, error) {
+			serverConf := &tls.Config{
+				GetCertificate: func(hi *tls.ClientHelloInfo) (*tls.Certificate, error) {
+					return serverCert, nil
+				},
+				MinVersion:            tls.VersionTLS12,
+				ClientAuth:            tls.RequireAndVerifyClientCert,
+				ClientCAs:             rootCAs,
+				VerifyPeerCertificate: getClientValidator(hi),
+			}
+			return serverConf, nil
+		},
+	}
+	return serverConf
+}
 
-// func ClientHNValidate(helloInfo *tls.ClientHelloInfo) (*tls.Config, error) {
-// 	hi := helloInfo
-// 	serverConf := &tls.Config{
-// 		VerifyPeerCertificate: getClientValidator(hi, serverConf),
-// 	}
-// 	return serverConf, nil
-// }
-
-// GetClientValidator does a thing
-func getClientValidator(helloInfo *tls.ClientHelloInfo, c *tls.Config) func([][]byte, [][]*x509.Certificate) error {
-	log.Debug("AHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH")
+// getClientValidator is a closure which provides connection info to VerifyPeerCertificate
+// in the TLS configuration
+func getClientValidator(helloInfo *tls.ClientHelloInfo) func([][]byte, [][]*x509.Certificate) error {
+	log.Debug("Inside get client validator")
 	return func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
 		//copied from the default options in src/crypto/tls/handshake_server.go, 680 (go 1.11)
 		//but added DNSName
-		fmt.Println("EWOIFJOWEIFJWOIEWJFWOIEJF")
-		log.Debug("tls config in validator: ", c)
+		log.Debug("tls config in validator")
 		opts := x509.VerifyOptions{
-			Roots:         c.ClientCAs,
-			CurrentTime:   c.Time(),
+			Roots:         rootCAs,
+			CurrentTime:   time.Now(),
 			Intermediates: x509.NewCertPool(),
 			KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-			DNSName:       helloInfo.Conn.RemoteAddr().String(),
+			DNSName:       strings.Split(helloInfo.Conn.RemoteAddr().String(), ":")[0],
 		}
 		_, err := verifiedChains[0][0].Verify(opts)
 		return err
 	}
-}
-
-// GetServerConfig returns a udp_rx TLS server configuration
-func GetServerConfig(rootCAs *x509.CertPool, cer tls.Certificate) *tls.Config {
-	serverConf := &tls.Config{
-		Certificates: []tls.Certificate{cer},
-		MinVersion:   tls.VersionTLS12,
-		ClientAuth:   tls.RequireAndVerifyClientCert,
-		ClientCAs:    rootCAs,
-	}
-	serverConf.GetConfigForClient = func(hi *tls.ClientHelloInfo) (*tls.Config, error) {
-		serverConf := &tls.Config{
-			VerifyPeerCertificate: getClientValidator(hi, serverConf),
-		}
-		return serverConf, nil
-	}
-	return serverConf
 }

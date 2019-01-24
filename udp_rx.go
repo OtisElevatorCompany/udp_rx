@@ -141,7 +141,7 @@ func main() {
 		RootCAs:      rootCAs,
 		Certificates: []tls.Certificate{cer},
 	}
-	serverConf = udprxlib.GetServerConfig(rootCAs, cer)
+	serverConf = udprxlib.GetServerConfig(rootCAs, &cer)
 
 	// start listening on the UDP port in go routine
 	udpListenerDone := make(chan error, 1)
