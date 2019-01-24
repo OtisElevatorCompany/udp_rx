@@ -21,7 +21,7 @@ udp_rx supports IPv4 and IPv6 and has a variable length header to accommodate th
 | 3              | Patch Version                                          | 0-255                                              |
 | 4              | Destination Port Upper Byte (big endian)               | 0-255                                              |
 | 5              | Destination Port Lower Byte (big endian)               | 0-255                                              |
-| B6             | IP Version                                             | 0x04 or 0x06                                       |
+| 6             | IP Version                                             | 0x04 or 0x06                                       |
 | 7-10 or 7-22   | Destination IP address (4 bytes for IPv4, 16 for IPv6) | 0-255                                              |
 | 11 or 23       | End or Source IP flag                                  | 0x80 for end of header, 0x76 for Source IP follows |
 | 12-15 or 24-39 | Source IP address (optional)                           | 0-255                                              |
