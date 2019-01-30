@@ -42,6 +42,9 @@ udp_rx will recieve the packet and create a udp packet from `localhost:random_po
 ## License
 This program is released under the MIT License. For details, please see the LICENSE file
 
+## Building
+Please see `BUILD.md` for instructions on building udp_rx.
+
 ## Credits
 This program uses the following open source libraries
 * [logrus](https://github.com/sirupsen/logrus) - Copyright Simon Eskildsen (MIT License)
