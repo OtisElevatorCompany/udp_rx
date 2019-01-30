@@ -1,6 +1,6 @@
 # Automated Builds
 ## Linux
-you can run the automated build script which will build all of the supported linux architectures by running:
+You can run the automated build script which will build all of the supported linux architectures by running:
 
 ```shell
 python3 build_linux_installers.py
@@ -9,7 +9,7 @@ python3 build_linux_installers.py
 This will create a folder named `builds` and place the created builds in that folder.
 
 ## Windows
-To run the automated windows installer, all you have to do is open the `udp_rx_installer` solution in visual studio (version 2015 or higher) and run the build command. This will automatically build the udp_rx windows service and cert creator.
+To run the automated windows installer, all you have to do is open the `udp_rx_installer` solution in Visual Studio (version 2015 or higher) and run the build command. This will automatically build the udp_rx windows service and cert creator.
 
 # Manual builds
 To build the udp_rx executable (or any other executable [like udprx_firewall]) for linux run the following command:
