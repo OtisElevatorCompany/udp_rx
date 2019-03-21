@@ -42,19 +42,23 @@ func main() {
 		// try to parse to an int, continue if we can't
 		for _, netInterface := range interfaces {
 			if !strings.HasPrefix(netInterface.Name, "lo") {
-				// iptables -I input -i eth0 -p udp --dport [port to REJECT] -j REJECT
-				var setArg string
+				// iptables -[IDC] INPUT -i eth0 -p udp --dport [port to REJECT] -j REJECT
 				if !*unsetFlag {
-					setArg = "-I"
+					//if there was NO error, the rule already exists, continue
+					if runIPTables("-C", portNumber, netInterface.Name) == nil {
+						continue
+					}
+					//otherwise add it
+					err = runIPTables("-I", portNumber, netInterface.Name)
+					if err != nil {
+						log.Printf("Error creating firewall rule. Error: %s", err.Error())
+						continue
+					}
 				} else {
-					setArg = "-D"
-				}
-				cmd := exec.Command("iptables", setArg, "INPUT", "-i", netInterface.Name, "-p", "udp", "--dport", portNumber, "-j", "REJECT")
-				if err := cmd.Run(); err != nil {
-					if !*unsetFlag {
-						log.Printf("Error creating firewall rules. Error: %s", err.Error())
-					} else {
-						log.Printf("Error deleting firewall rules. Error: %s", err.Error())
+					for {
+						if runIPTables("-D", portNumber, netInterface.Name) != nil {
+							break
+						}
 					}
 				}
 
@@ -72,4 +76,9 @@ func main() {
 		log.Print("udprx_firewall - set firewall")
 	}
 
+}
+
+func runIPTables(setArg, portNumber, netInterface string) error {
+	cmd := exec.Command("iptables", setArg, "INPUT", "-i", netInterface, "-p", "udp", "--dport", portNumber, "-j", "REJECT")
+	return cmd.Run()
 }
