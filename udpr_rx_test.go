@@ -57,14 +57,16 @@ func TestModifyForWindows(t *testing.T) {
 func TestSetConfigValues(t *testing.T) {
 	// make a confFile with some known values
 	conf := udprxlib.ConfFile{
-		ListenAddr: "abc",
-		KeyPath:    "def",
-		CertPath:   "foo",
-		CaCertPath: defaultCACertPath,
+		ListenAddr:    "abc",
+		KeyPath:       "def",
+		CertPath:      "foo",
+		CaCertPath:    defaultCACertPath,
+		ListenUDPPort: "12345",
 	}
 	defLisAddr := defaultListenAddr
+	defLisUDPPort := defaultUDPListenPort
 	changedCertArg := "foobar"
-	setConfigValues(&conf, &defLisAddr, &defaultKeyPath, &changedCertArg, &defaultCACertPath)
+	setConfigValues(&conf, &defLisAddr, &defaultKeyPath, &changedCertArg, &defaultCACertPath, &defLisUDPPort)
 	// listen addr and key path should be set from conf object
 	if listenAddr != "abc" {
 		t.Errorf("listen address is wrong. Value: %s", listenAddr)
@@ -79,5 +81,9 @@ func TestSetConfigValues(t *testing.T) {
 	// CaCertPath should be default
 	if caCertPath != defaultCACertPath {
 		t.Errorf("ca certpath shouldn't have changed. Value: %s", caCertPath)
+	}
+	// udp port should be 12345
+	if listenUDPPort != "12345" {
+		t.Errorf("Listen udp port is wrong. Value: %s", caCertPath)
 	}
 }

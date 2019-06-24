@@ -8,10 +8,11 @@ import (
 
 // ConfFile represents the config file struct
 type ConfFile struct {
-	ListenAddr string `json:"listenAddr"`
-	KeyPath    string `json:"keyPath"`
-	CertPath   string `json:"certPath"`
-	CaCertPath string `json:"caCertPath"`
+	ListenAddr    string `json:"listenAddr"`
+	KeyPath       string `json:"keyPath"`
+	CertPath      string `json:"certPath"`
+	CaCertPath    string `json:"caCertPath"`
+	ListenUDPPort string `json:"listenUDPPort"`
 }
 
 // ParseConfig parses a ConfFile into it's struct

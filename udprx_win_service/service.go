@@ -27,9 +27,10 @@ var defaultCACertPath = "c:\\programdata\\udp_rx\\ca.crt"
 
 // const startup arg values
 const defaultListenAddr = ""
+const defaultUDPListenPort = "55555"
 
 // config values
-var listenAddr, keyPath, certPath, caCertPath string
+var listenAddr, listenUDPPort, keyPath, certPath, caCertPath string
 
 // tls configs
 var clientConf *tls.Config
@@ -44,7 +45,7 @@ func startNetListeners() (chan error, chan error) {
 	udpListenerChan := make(chan error, 1)
 	tcpListenerChan := make(chan error, 1)
 	// start the threads
-	go udprxlib.UDPListener(&listenAddr, clientConf, udpListenerChan)
+	go udprxlib.UDPListener(&listenAddr, &listenUDPPort, clientConf, udpListenerChan)
 	go udprxlib.TCPListener(&listenAddr, serverConf, tcpListenerChan)
 	return udpListenerChan, tcpListenerChan
 }
@@ -179,6 +180,13 @@ func setConfigValues(conf udprxlib.ConfFile) {
 		caCertPath = conf.CaCertPath
 	} else {
 		caCertPath = defaultCACertPath
+	}
+
+	// listen UDP port flag
+	if conf.ListenUDPPort != defaultUDPListenPort {
+		listenUDPPort = conf.ListenUDPPort
+	} else {
+		listenUDPPort = defaultUDPListenPort
 	}
 
 }

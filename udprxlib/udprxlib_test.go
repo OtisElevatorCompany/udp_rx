@@ -16,6 +16,7 @@
 // responsibility to comply with any applicable laws and regulations
 // pertaining the import, download, possession, use and/or reexport of
 // encryption items.
+
 package udprxlib
 
 import (
@@ -48,6 +49,7 @@ func modifyKeyPathsWindows() {
 
 // TestCheckMutexMap checks the checkMutexMapMutex method
 func TestCheckMutexMap(t *testing.T) {
+	t.Log("MutexMap test")
 	created := checkMutexMapMutex("192.168.1.100")
 	if !created {
 		t.Errorf("Did not create a mutex")
@@ -60,6 +62,7 @@ func TestCheckMutexMap(t *testing.T) {
 
 // TestGetConn checks the getConn method
 func TestGetConn(t *testing.T) {
+	t.Log("test get conn")
 	// setup certs
 	modifyKeyPathsWindows()
 	rootCAs := ConfigureRootCAs(&cacertpath)
@@ -295,7 +298,9 @@ func TestTCPListener(t *testing.T) {
 	handleConnectionFunc = mockHandleConnection
 	// start the listener and send a message
 	go TCPListener(&listenAddrSting, serverConf, doneChan)
+	t.Log("Sleeping TestTCPListener for 3")
 	time.Sleep(time.Second * 3)
+	t.Log("Finished sleeping TCP listener")
 	sendTLSMessage(t, cer, rootCAs)
 	// close the connection
 	TCPSocketListener.Close()
@@ -331,6 +336,7 @@ func TestUDPListener(t *testing.T) {
 	modifyKeyPathsWindows()
 	testUDPListenerT = t
 	listenAddr := ""
+	udpListenPort := "55555"
 	rootCAs := ConfigureRootCAs(&cacertpath)
 	cer, err := tls.LoadX509KeyPair(certpath, keypath)
 	if err != nil {
@@ -344,7 +350,7 @@ func TestUDPListener(t *testing.T) {
 	doneChan := make(chan error)
 	// start the UDP listener
 	forwardPacketFunc = mockForwardPacket
-	go UDPListener(&listenAddr, clientConf, doneChan)
+	go UDPListener(&listenAddr, &udpListenPort, clientConf, doneChan)
 	time.Sleep(time.Second * 3)
 	// send a packet to the UDP listener
 	ServerAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:55555")

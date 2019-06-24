@@ -44,13 +44,14 @@ var serverConf *tls.Config
 
 // const startup arg values
 const defaultListenAddr = ""
+const defaultUDPListenPort = "55555"
 
 var confFilePath = "/etc/udp_rx/udp_rx_conf.json"
 var defaultKeyPath = "/etc/udp_rx/udp_rx.key"
 var defaultCertPath = "/etc/udp_rx/udp_rx.crt"
 var defaultCACertPath = "/etc/udp_rx/ca.crt"
 
-var listenAddr, keyPath, certPath, caCertPath string
+var listenAddr, keyPath, certPath, caCertPath, listenUDPPort string
 
 func main() {
 	fmt.Printf("Starting udp_rx at: %s\n", time.Now())
@@ -63,6 +64,7 @@ func main() {
 	versionFlag := flag.Bool("version", false, "Print the Version number and exit")
 	logFlag := flag.Int("loglevel", 0, "level of logging. 0 is warn+, 1 is Info+, 2 is debug+")
 	listenAddrFlag := flag.String("bindaddr", defaultListenAddr, "The IP address to bind the listening UDP socket to")
+	listenUDPPortFlag := flag.String("listenUdpPort", defaultUDPListenPort, "The UDP port to bind the listening UDP socket to")
 	cpuprofileFlag := flag.String("cpuprofile", "", "If specified writed a cpuprofile to the given filename")
 	maxProfilingPacketsFlag := flag.Int("maxprofpackets", 1000, "the maximum number of packets allowed to be forwarded during CPU profiling")
 	netProfilingFlag := flag.Bool("netprof", false, "turn on net profiling")
@@ -94,10 +96,10 @@ func main() {
 	// load config file
 	conf, err := udprxlib.ParseConfig(*confFileFlag)
 	if err == nil {
-		setConfigValues(&conf, listenAddrFlag, keyPathFlag, certPathFlag, caCertPathFlag)
+		setConfigValues(&conf, listenAddrFlag, keyPathFlag, certPathFlag, caCertPathFlag, listenUDPPortFlag)
 	} else {
 		log.Warn("Error parsing the config file. Error: ", err.Error())
-		setConfigValues(nil, listenAddrFlag, keyPathFlag, certPathFlag, caCertPathFlag)
+		setConfigValues(nil, listenAddrFlag, keyPathFlag, certPathFlag, caCertPathFlag, listenUDPPortFlag)
 	}
 
 	configLogger(logFlag)
@@ -145,7 +147,7 @@ func main() {
 
 	// start listening on the UDP port in go routine
 	udpListenerDone := make(chan error, 1)
-	go udprxlib.UDPListener(&listenAddr, clientConf, udpListenerDone)
+	go udprxlib.UDPListener(&listenAddr, &listenUDPPort, clientConf, udpListenerDone)
 	// start listening on TCP on main thread (blocking main from returning)
 	tcpListenerDone := make(chan error, 1)
 	udprxlib.TCPListener(&listenAddr, serverConf, tcpListenerDone)
@@ -167,7 +169,7 @@ func configLogger(logFlag *int) error {
 	return nil
 }
 
-func setConfigValues(conf *udprxlib.ConfFile, listAddrArg, keyPathArg, certPathArg, caCertPathArg *string) {
+func setConfigValues(conf *udprxlib.ConfFile, listAddrArg, keyPathArg, certPathArg, caCertPathArg, listenUDPPortFlag *string) {
 	// precedence is: command line arg -> config file -> program default
 	// listen addr
 	if *listAddrArg != defaultListenAddr {
@@ -203,6 +205,15 @@ func setConfigValues(conf *udprxlib.ConfFile, listAddrArg, keyPathArg, certPathA
 		caCertPath = conf.CaCertPath
 	} else {
 		caCertPath = defaultCACertPath
+	}
+
+	// listen UDP port flag
+	if *listenUDPPortFlag != defaultUDPListenPort {
+		listenUDPPort = *caCertPathArg
+	} else if conf != nil && conf.ListenUDPPort != defaultUDPListenPort {
+		listenUDPPort = conf.ListenUDPPort
+	} else {
+		listenUDPPort = defaultUDPListenPort
 	}
 
 }

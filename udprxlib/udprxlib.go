@@ -121,8 +121,8 @@ var UDPSocketListener *net.UDPConn
 var forwardPacketFunc = forwardPacket
 
 // UDPListener is the udp local listener for outbound connections
-func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error) {
-	listenAddr := fmt.Sprintf("%s:55555", *listenAddrFlag)
+func UDPListener(listenAddrFlag, listenPortFlag *string, clientConf *tls.Config, done chan error) {
+	listenAddr := fmt.Sprintf("%s:%s", *listenAddrFlag, *listenPortFlag)
 	ServerAddr, err := net.ResolveUDPAddr("udp", listenAddr)
 	if err != nil {
 		log.WithFields(
