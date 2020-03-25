@@ -49,6 +49,7 @@ var confFilePath = "/etc/udp_rx/udp_rx_conf.json"
 var defaultKeyPath = "/etc/udp_rx/udp_rx.key"
 var defaultCertPath = "/etc/udp_rx/udp_rx.crt"
 var defaultCACertPath = "/etc/udp_rx/ca.crt"
+var defaultLogPath = "/var/log/udp_rx.log"
 
 var listenAddr, keyPath, certPath, caCertPath string
 
@@ -78,7 +79,7 @@ func main() {
 	if *lumberjackFlag {
 		fmt.Println("using lumberjack")
 		log.SetOutput(&lumberjack.Logger{
-			Filename:   "udp_rx.log",
+			Filename:   defaultLogPath,
 			MaxSize:    500, // megabytes
 			MaxBackups: 3,
 			MaxAge:     28,   // days
@@ -212,6 +213,7 @@ func modifyDefaultsWindows() {
 	defaultKeyPath = "c:\\programdata\\udp_rx\\udp_rx.key"
 	defaultCertPath = "c:\\programdata\\udp_rx\\udp_rx.crt"
 	defaultCACertPath = "c:\\programdata\\udp_rx\\ca.crt"
+	defaultLogPath = "c:\\programdata\\udp_rx\\udp_rx.log"
 }
 
 func isWindows() bool {
