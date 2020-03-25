@@ -68,6 +68,7 @@ func main() {
 	maxProfilingPacketsFlag := flag.Int("maxprofpackets", 1000, "the maximum number of packets allowed to be forwarded during CPU profiling")
 	netProfilingFlag := flag.Bool("netprof", false, "turn on net profiling")
 	lumberjackFlag := flag.Bool("lumberjack", false, "use lumberjack local file logging")
+	logPathFlag := flag.String("logpath", defaultLogPath, "the path to log to")
 	// configuration filepath override
 	confFileFlag := flag.String("conf", confFilePath, "Override the default configuration filepath")
 	// certificate flags
@@ -79,7 +80,7 @@ func main() {
 	if *lumberjackFlag {
 		fmt.Println("using lumberjack")
 		log.SetOutput(&lumberjack.Logger{
-			Filename:   defaultLogPath,
+			Filename:   *logPathFlag,
 			MaxSize:    500, // megabytes
 			MaxBackups: 3,
 			MaxAge:     28,   // days
