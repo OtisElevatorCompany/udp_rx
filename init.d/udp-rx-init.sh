@@ -3,9 +3,9 @@
 startdaemon(){
 
 	echo "Start UDP RX..."
-	if [ -f /usr/sbin/udp_rx ]
+	if [ -f /usr/bin/udp_rx ]
 	then
-		/usr/sbin/udp_rx >> /dev/null 2>&1 &
+		/usr/bin/udp_rx >> /dev/null 2>&1 &
 	fi
 }
 
