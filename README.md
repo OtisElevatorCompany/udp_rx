@@ -1,5 +1,4 @@
 # udp_rx
-This is still currently pre-1.0 software, breaking changes are likely to be made until a 1.0 release
 
 udp_rx is a program created to tunnel UDP traffic through a TLS 1.2+ connection. It is useful for securing old protocols that cannot be updated to tcp or for some reason, can't use dtls. If you use this tool you **should** firewall off the UDP ports used by the protocol to prevent redirection by a malicious third party and **should** firewall off the UDP port used by udp_rx.
 
@@ -52,4 +51,4 @@ This program uses the following open source libraries
 
 ---
 
-Copyright 2018, Otis Elevator Company
+Copyright 2020, Otis Elevator Company
