@@ -32,7 +32,7 @@ import (
 )
 
 // Version is the current version of the application
-const Version = "AAA31825AAA"
+const Version = "A1131825AAB"
 
 func usage(errmsg string) {
 	fmt.Fprintf(os.Stderr,
