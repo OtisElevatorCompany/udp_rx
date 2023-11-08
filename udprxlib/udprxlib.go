@@ -231,7 +231,7 @@ func UDPListener(listenAddrFlag *string, clientConf *tls.Config, done chan error
 		}
 		if isLocalHost {
 			// skip forward packet and go straight to sending a UDP packet to the local IP
-			err = SendUDP(src.IP.String(), header.DestIPAddr.String(), uint(src.Port), uint(header.PortNumber), buf[:n], 0)
+			err = SendUDP(src.IP.String(), header.DestIPAddr.String(), uint(src.Port), uint(header.PortNumber), buf[:n-removedbytes], 0)
 			if err != nil {
 				log.WithFields(
 					log.Fields{
