@@ -54,8 +54,8 @@ var mutexWriterMutex = &sync.Mutex{}
 
 // connMap is a hashmap of strings (ip addresses in string form) to tls connection pointers
 // NOTE: the key here is a string in the form of "dest|src"
-var connMap = make(map[string]*tls.Conn)
-var lastConnFail = make(map[string]time.Time)
+var connMap = sync.Map{}
+var lastConnFail = sync.Map{}
 
 // RemoteTLSPort is the port of the remote TLS server (also the port of the local TLS server)
 var RemoteTLSPort = ":55554"
@@ -301,10 +301,11 @@ func StopThreads() {
 	TCPSocketListener.Close()
 	UDPSocketListener.Close()
 	// close all open connections
-	for _, conn := range connMap {
-		conn.Close()
-	}
-	connMap = make(map[string]*tls.Conn)
+	connMap.Range(func(key, value interface{}) bool {
+		value.(*tls.Conn).Close()
+		return true
+	})
+	connMap = sync.Map{}
 }
 
 // addConn caches a connection for an incoming TLS connection
@@ -317,10 +318,10 @@ func addConn(remoteAddr, localAddr string, conn *tls.Conn) {
 		checkMutexMapMutex(key)
 		mutexMap[key].Lock()
 		defer mutexMap[key].Unlock()
-		existingConn := connMap[key]
+		existingConn, _ := connMap.Load(key)
 		// check if there's already a connection, if there is, do nothing, it should be OK
 		if existingConn == nil {
-			connMap[key] = conn
+			connMap.Store(key, conn)
 		}
 	}
 }
@@ -564,13 +565,16 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 	mutexMap[mapKey].Lock()
 	defer mutexMap[mapKey].Unlock()
 	// also check
-	conn := connMap[mapKey]
+	conn, _ := connMap.Load(mapKey)
 	// if there's no connection, try to create one
 	if conn == nil {
 		// if it's been less than ConnTimeoutVal seconds: don't try and create a new connection
 		// and return an error
-		if time.Since(lastConnFail[mapKey]).Seconds() < ConnTimeoutVal {
-			return nil, &connTimeoutError{"Connection hasn't timed out"}
+		lastFail, ok := lastConnFail.Load(mapKey)
+		if ok {
+			if time.Since(lastFail.(time.Time)).Seconds() < ConnTimeoutVal {
+				return nil, &connTimeoutError{"Connection hasn't timed out"}
+			}
 		}
 		log.Info("creating new cached connection for: ", mapKey)
 		// If there is no source IP, we can do the easy tls.Dial
@@ -587,10 +591,10 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 						"destip":     header.DestIPAddr.String(),
 						"remoteport": remotePort,
 					}).Error("Error dialing destination")
-				lastConnFail[mapKey] = time.Now()
+				lastConnFail.Store(mapKey, time.Now())
 				return nil, err
 			}
-			connMap[mapKey] = newconn
+			connMap.Store(mapKey, newconn)
 		} else {
 			// if there is a sending IP, use a dialer to force a source IP
 			dialer := net.Dialer{
@@ -605,10 +609,10 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 						"remoteport": remotePort,
 						"sourceip":   header.SourceIPAddr,
 					}).Error("Error dialing destination with source ip")
-				lastConnFail[mapKey] = time.Now()
+				lastConnFail.Store(mapKey, time.Now())
 				return nil, err
 			}
-			connMap[mapKey] = newconn
+			connMap.Store(mapKey, newconn)
 		}
 		// start listening for connections in on this connection
 		go handleConnection(newconn, SendUDP)
@@ -625,7 +629,7 @@ func getConn(header UDPRxHeader, conf *tls.Config, remotePort string) (*tls.Conn
 		}
 		return newconn, nil
 	}
-	return conn, nil
+	return conn.(*tls.Conn), nil
 }
 
 // removeconn will remove all connections to the remote host, regardless of sending IP address
@@ -634,11 +638,12 @@ func removeConn(header UDPRxHeader) {
 	checkMutexMapMutex(mapKey)
 	mutexMap[mapKey].Lock()
 	defer mutexMap[mapKey].Unlock()
-	for key := range connMap {
-		if strings.HasPrefix(key, header.DestIPAddr.String()) {
-			delete(connMap, key)
+	connMap.Range(func(key, value interface{}) bool {
+		if strings.HasPrefix(key.(string), header.DestIPAddr.String()) {
+			connMap.Delete(key)
 		}
-	}
+		return true
+	})
 }
 
 // UDPRxHeader represents the udp_rx header on incoming udp_packets
