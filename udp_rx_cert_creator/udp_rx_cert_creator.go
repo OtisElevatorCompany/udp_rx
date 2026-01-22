@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	certcreator "../cert_creator"
+	certcreator "github.com/OtisElevatorCompany/udp_rx/cert_creator"
 )
 
 func main() {

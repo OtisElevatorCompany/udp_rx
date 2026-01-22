@@ -35,7 +35,7 @@ import (
 	"sync"
 	"time"
 
-	certcreator "udp_rx/cert_creator"
+	certcreator "github.com/OtisElevatorCompany/udp_rx/cert_creator"
 	log "github.com/sirupsen/logrus"
 )
 
