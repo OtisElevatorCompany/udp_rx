@@ -21,7 +21,7 @@ package main
 import (
 	"testing"
 
-	"./udprxlib"
+	"github.com/OtisElevatorCompany/udp_rx/udprxlib"
 )
 
 // TestLogConfig checks the logger configuration method
