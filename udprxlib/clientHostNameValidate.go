@@ -48,6 +48,11 @@ func GetServerConfig(rcas *x509.CertPool, sc *tls.Certificate) *tls.Config {
 					return serverCert, nil
 				},
 				MinVersion:            tls.VersionTLS12,
+				MaxVersion: tls.VersionTLS13,
+				PreferServerCipherSuites: true,
+				CurvePreferences: []tls.CurveID {
+					tls.X25519, tls.CurveP256, tls.CurveP384, tls.CurveP521,
+				},
 				ClientAuth:            tls.RequireAndVerifyClientCert,
 				ClientCAs:             rootCAs,
 				VerifyPeerCertificate: getClientValidator(hi),
