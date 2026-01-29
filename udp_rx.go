@@ -26,8 +26,7 @@ import (
 	"os"
 	"time"
 
-	"./udprxlib"
-
+	udprxlib "github.com/OtisElevatorCompany/udp_rx/udprxlib"
 	log "github.com/sirupsen/logrus"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )

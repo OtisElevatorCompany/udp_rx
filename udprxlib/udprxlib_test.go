@@ -100,7 +100,7 @@ func setupTLS(rootCAs *x509.CertPool) net.Listener {
 	}
 	serverConf := &tls.Config{
 		Certificates: []tls.Certificate{cer},
-		MinVersion:   tls.VersionTLS12,
+		MinVersion:   tls.VersionTLS13,
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    rootCAs,
 	}
@@ -235,7 +235,7 @@ func listenTLS(readyTLS chan bool) {
 	}
 	serverConf := &tls.Config{
 		Certificates: []tls.Certificate{cer},
-		MinVersion:   tls.VersionTLS12,
+		MinVersion:   tls.VersionTLS13,
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    rootCAs,
 	}
@@ -286,7 +286,7 @@ func TestTCPListener(t *testing.T) {
 	}
 	serverConf := &tls.Config{
 		Certificates: []tls.Certificate{cer},
-		MinVersion:   tls.VersionTLS12,
+		MinVersion:   tls.VersionTLS13,
 		ClientAuth:   tls.RequireAndVerifyClientCert,
 		ClientCAs:    rootCAs,
 	}
