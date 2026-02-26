@@ -32,7 +32,7 @@ import (
 )
 
 // Version is a constant that is this verion of the code, according to OTIS standards
-const Version = "A1231825AAB"
+const Version = "A1331825AAB"
 
 // RemoteTLSPort is the port of the remote TLS server (also the port of the local TLS server)
 const RemoteTLSPort = ":55554"
