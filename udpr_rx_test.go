@@ -19,6 +19,8 @@
 package main
 
 import (
+	"io/ioutil"
+	"strings"
 	"testing"
 
 	"github.com/OtisElevatorCompany/udp_rx/udprxlib"
@@ -35,6 +37,9 @@ func TestLogConfig(t *testing.T) {
 }
 
 func TestModifyForWindows(t *testing.T) {
+	if !isWindows() {
+		t.Skip("Windows-only test")
+	}
 	confFilePath = ""
 	defaultKeyPath = ""
 	defaultCertPath = ""
@@ -79,5 +84,151 @@ func TestSetConfigValues(t *testing.T) {
 	// CaCertPath should be default
 	if caCertPath != defaultCACertPath {
 		t.Errorf("ca certpath shouldn't have changed. Value: %s", caCertPath)
+	}
+}
+
+// TestModifyForWindowsSetsDefaultLogPath verifies the Windows-specific log path added after the original defaults tests.
+func TestModifyForWindowsSetsDefaultLogPath(t *testing.T) {
+	if !isWindows() {
+		t.Skip("Windows-only test")
+	}
+	confFilePath = ""
+	defaultKeyPath = ""
+	defaultCertPath = ""
+	defaultCACertPath = ""
+	defaultLogPath = ""
+
+	modifyDefaultsWindows()
+
+	if defaultLogPath != "c:\\programdata\\udp_rx\\udp_rx.log" {
+		t.Fatalf("Error with windows log path. Path: %s", defaultLogPath)
+	}
+}
+
+// TestSetConfigValuesUsesDefaultsWhenConfNil verifies that nil config input preserves program defaults for every path field.
+func TestSetConfigValuesUsesDefaultsWhenConfNil(t *testing.T) {
+	listenAddr = ""
+	keyPath = ""
+	certPath = ""
+	caCertPath = ""
+
+	listAddrArg := defaultListenAddr
+	keyPathArg := defaultKeyPath
+	certPathArg := defaultCertPath
+	caCertPathArg := defaultCACertPath
+
+	setConfigValues(nil, &listAddrArg, &keyPathArg, &certPathArg, &caCertPathArg)
+
+	if listenAddr != defaultListenAddr {
+		t.Fatalf("listen address should fall back to default. Value: %s", listenAddr)
+	}
+	if keyPath != defaultKeyPath {
+		t.Fatalf("key path should fall back to default. Value: %s", keyPath)
+	}
+	if certPath != defaultCertPath {
+		t.Fatalf("cert path should fall back to default. Value: %s", certPath)
+	}
+	if caCertPath != defaultCACertPath {
+		t.Fatalf("ca cert path should fall back to default. Value: %s", caCertPath)
+	}
+}
+
+// TestDefaultLogPathRemainsLinuxDefault verifies the non-Windows default log path introduced 
+// for SysV-style Linux installs.
+func TestDefaultLogPathRemainsLinuxDefault(t *testing.T) {
+	//defaultLogPath = "/var/log/udp_rx.log"
+
+	if !isWindows() && defaultLogPath != "/var/log/udp_rx.log" {
+		t.Fatalf("expected Linux default log path /var/log/udp_rx.log, got %s", defaultLogPath)
+	}
+}
+
+// TestInitDScriptUsesUsrBinBinaryPath verifies the checked-in SysV init.d script starts the 
+// installed binary from /usr/bin.
+func TestInitDScriptUsesUsrBinBinaryPath(t *testing.T) {
+	content, err := ioutil.ReadFile("./init.d/udp-rx-init.sh")
+	if err != nil {
+		t.Fatalf("failed to read init.d script: %v", err)
+	}
+	script := string(content)
+
+	if !strings.Contains(script, "if [ -f /usr/bin/udp_rx ]") {
+		t.Fatal("expected init.d script to check for /usr/bin/udp_rx before starting")
+	}
+	if !strings.Contains(script, "/usr/bin/udp_rx >> /dev/null 2>&1 &") {
+		t.Fatal("expected init.d script to launch /usr/bin/udp_rx")
+	}
+}
+
+// TestInitDScriptUsageDocumentsSupportedCommands verifies the checked-in SysV init.d script 
+// still documents the supported service actions.
+func TestInitDScriptUsageDocumentsSupportedCommands(t *testing.T) {
+	content, err := ioutil.ReadFile("./init.d/udp-rx-init.sh")
+	if err != nil {
+		t.Fatalf("failed to read init.d script: %v", err)
+	}
+	script := string(content)
+
+	if !strings.Contains(script, "start)") {
+		t.Fatal("expected init.d script to support start action")
+	}
+	if !strings.Contains(script, "stop)") {
+		t.Fatal("expected init.d script to support stop action")
+	}
+	if !strings.Contains(script, "restart)") {
+		t.Fatal("expected init.d script to support restart action")
+	}
+	if !strings.Contains(script, "Usage: udp-rx-init.sh { start | stop | restart }") {
+		t.Fatal("expected init.d script usage text to document start, stop, and restart")
+	}
+}
+
+// TestConfigLoggerDebugInitializesForwardMap verifies that debug logging enables the 
+// forward-count map used by packet forwarding diagnostics.
+func TestConfigLoggerDebugInitializesForwardMap(t *testing.T) {
+	oldForwardMap := udprxlib.ForwardMap
+	t.Cleanup(func() {
+		udprxlib.ForwardMap = oldForwardMap
+	})
+
+	udprxlib.ForwardMap = nil
+	debugFlag := 2
+
+	if err := configLogger(&debugFlag); err != nil {
+		t.Fatalf("configLogger returned an unexpected error: %v", err)
+	}
+	if udprxlib.ForwardMap == nil {
+		t.Fatal("expected debug logging to initialize ForwardMap")
+	}
+	udprxlib.ForwardMap["127.0.0.1:55554"] = 1
+	if udprxlib.ForwardMap["127.0.0.1:55554"] != 1 {
+		t.Fatal("expected initialized ForwardMap to be writable")
+	}
+}
+
+// TestConfigLoggerNonDebugLeavesForwardMapDisabled verifies that non-debug logging does not 
+// enable ForwardMap when it starts disabled.
+func TestConfigLoggerNonDebugLeavesForwardMapDisabled(t *testing.T) {
+	oldForwardMap := udprxlib.ForwardMap
+	t.Cleanup(func() {
+		udprxlib.ForwardMap = oldForwardMap
+	})
+
+	udprxlib.ForwardMap = nil
+	warnFlag := 0
+
+	if err := configLogger(&warnFlag); err != nil {
+		t.Fatalf("configLogger returned an unexpected error: %v", err)
+	}
+	if udprxlib.ForwardMap != nil {
+		t.Fatal("expected non-debug logging not to initialize ForwardMap")
+	}
+
+	infoFlag := 1
+	if err := configLogger(&infoFlag); err != nil {
+		t.Fatalf("configLogger returned an unexpected error: %v", err)
+	}
+	if udprxlib.ForwardMap != nil {
+		t.Fatal("expected info logging not to initialize ForwardMap")
 	}
 }
