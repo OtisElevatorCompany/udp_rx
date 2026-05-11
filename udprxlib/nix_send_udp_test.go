@@ -23,7 +23,9 @@ package udprxlib
 
 import (
 	"net"
+	"strings"
 	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -67,5 +69,50 @@ func handleUDPConn(t *testing.T) {
 		if buf[i] != (byte)(10-i) {
 			t.Errorf("Data invalid")
 		}
+	}
+}
+
+// UDP message handling correctness
+// TestSendUDPZeroPayloadPreservesMetadata verifies that an empty payload still
+// transmits the expected source IP and source port metadata.
+func TestSendUDPZeroPayloadPreservesMetadata(t *testing.T) {
+	received := make(chan *net.UDPAddr, 1)
+	go func() {
+		listenAddr := ":55556"
+		serverAddr, _ := net.ResolveUDPAddr("udp", listenAddr)
+		serverConn, _ := net.ListenUDP("udp", serverAddr)
+		defer serverConn.Close()
+		buf := make([]byte, 16)
+		_, src, _ := serverConn.ReadFromUDP(buf)
+		received <- src
+	}()
+
+	if err := SendUDP("192.168.1.100", "127.0.0.1", 55553, 55556, nil, 0); err != nil {
+		t.Fatalf("SendUDP returned an unexpected error for zero payload: %v", err)
+	}
+
+	select {
+	case src := <-received:
+		if src.IP.String() != "192.168.1.100" {
+			t.Fatalf("src IP invalid: %s", src.IP.String())
+		}
+		if src.Port != 55553 {
+			t.Fatalf("src Port invalid %d", src.Port)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for zero-payload UDP packet")
+	}
+}
+
+// TestSendUDPRejectsOversizedPayload verifies that payloads larger than the
+// supported UDP message size are rejected with a size-related error.
+func TestSendUDPRejectsOversizedPayload(t *testing.T) {
+	oversizedPayload := make([]byte, 65508)
+	err := SendUDP("192.168.1.100", "127.0.0.1", 55553, 55556, oversizedPayload, 0)
+	if err == nil {
+		t.Fatal("expected oversized payload to be rejected")
+	}
+	if !strings.Contains(err.Error(), "Message too large") {
+		t.Fatalf("expected oversized payload error, got %v", err)
 	}
 }
