@@ -22,8 +22,10 @@
 package udprxlib
 
 import (
+	"bytes"
 	"net"
 	"testing"
+	"time"
 )
 
 func TestCreateUDPSocket(t *testing.T) {
@@ -65,5 +67,47 @@ func handleUDPConn(t *testing.T) {
 		if buf[6+i] != (byte)(10-i) {
 			t.Errorf("Data invalid")
 		}
+	}
+}
+
+// UDP message handling correctness
+// TestSendUDPZeroPayloadPreservesMetadata verifies that an empty payload still
+// emits the encoded source IP and source port metadata bytes.
+func TestSendUDPZeroPayloadPreservesMetadata(t *testing.T) {
+	listenAddr := ":55556"
+	serverAddr, err := net.ResolveUDPAddr("udp", listenAddr)
+	if err != nil {
+		t.Fatalf("failed to resolve UDP addr: %v", err)
+	}
+	serverConn, err := net.ListenUDP("udp", serverAddr)
+	if err != nil {
+		t.Fatalf("failed to listen on UDP socket: %v", err)
+	}
+	defer serverConn.Close()
+
+	received := make(chan []byte, 1)
+	go func() {
+		buf := make([]byte, 16)
+		n, _, _ := serverConn.ReadFromUDP(buf)
+		received <- append([]byte(nil), buf[:n]...)
+	}()
+
+	if err := SendUDP("192.168.1.100", "127.0.0.1", 55553, 55556, nil, 0); err != nil {
+		t.Fatalf("SendUDP returned an unexpected error for zero payload: %v", err)
+	}
+
+	select {
+	case buf := <-received:
+		if len(buf) != 6 {
+			t.Fatalf("expected only metadata bytes for zero payload, got %d bytes", len(buf))
+		}
+		if !bytes.Equal(buf[:4], []byte{192, 168, 1, 100}) {
+			t.Fatalf("expected source IP metadata [192 168 1 100], got %v", buf[:4])
+		}
+		if !bytes.Equal(buf[4:], []byte{0xD9, 0x01}) {
+			t.Fatalf("expected source port metadata [217 1], got %v", buf[4:])
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for zero-payload UDP packet")
 	}
 }
